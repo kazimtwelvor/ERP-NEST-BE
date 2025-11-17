@@ -8,19 +8,15 @@ import * as compression from 'compression';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Security
   app.use(helmet.default());
 
-  // Compression
   app.use(compression());
 
-  // CORS
   app.enableCors({
     origin: process.env.FRONTEND_URL || '*',
     credentials: true,
   });
 
-  // Global validation pipe
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -32,7 +28,6 @@ async function bootstrap() {
     }),
   );
 
-  // Swagger API Documentation
   const config = new DocumentBuilder()
     .setTitle('ERP System API')
     .setDescription('Enterprise Resource Planning System API Documentation')
