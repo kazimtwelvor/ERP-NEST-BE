@@ -2,6 +2,8 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
+  ManyToOne,
+  JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
   BeforeInsert,
@@ -10,6 +12,7 @@ import {
 import { Exclude } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import * as bcrypt from 'bcrypt';
+import { Role } from '../../role-permission/entities/role.entity';
 
 @Entity('users')
 export class User {
@@ -71,18 +74,10 @@ export class User {
   })
   status: string;
 
-  @ApiPropertyOptional({
-    description: 'User role',
-    enum: ['admin', 'manager', 'employee', 'customer'],
-    default: 'employee',
-    example: 'employee',
-  })
-  @Column({
-    type: 'enum',
-    enum: ['admin', 'manager', 'employee', 'customer'],
-    default: 'employee',
-  })
-  role: string;
+  @ApiPropertyOptional({ description: 'User role', type: () => Role })
+  @ManyToOne(() => Role, { nullable: false, eager: true })
+  @JoinColumn({ name: 'role_id' })
+  role: Role;
 
   @ApiPropertyOptional({ description: 'Last login timestamp' })
   @Column({ name: 'last_login', nullable: true })

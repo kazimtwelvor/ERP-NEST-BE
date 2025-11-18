@@ -8,6 +8,7 @@ import { Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
+import { Role } from '../role-permission/entities/role.entity';
 import { USER_MESSAGES } from './messages/user.messages';
 
 @Injectable()
@@ -15,6 +16,8 @@ export class UserService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Role)
+    private readonly roleRepository: Repository<Role>,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<{ user: User; message: string }> {
@@ -26,9 +29,22 @@ export class UserService {
       throw new ConflictException(USER_MESSAGES.ALREADY_EXISTS);
     }
 
+    let role: Role | null;
+    if (createUserDto.roleId) {
+      role = await this.roleRepository.findOne({ where: { id: createUserDto.roleId } });
+      if (!role) {
+        throw new NotFoundException('Role not found');
+      }
+    } else {
+      role = await this.roleRepository.findOne({ where: { name: 'employee' } });
+      if (!role) {
+        throw new NotFoundException('Default employee role not found. Please run seeds first.');
+      }
+    }
+
     const user = this.userRepository.create({
       ...createUserDto,
-      role: createUserDto.role || 'employee',
+      role,
       status: createUserDto.status || 'active',
     });
 
@@ -44,7 +60,8 @@ export class UserService {
 
   async findAll(): Promise<{ users: User[]; message: string }> {
     const users = await this.userRepository.find({
-      select: ['id', 'email', 'firstName', 'lastName', 'phone', 'role', 'status', 'createdAt', 'updatedAt'],
+      relations: ['role'],
+      select: ['id', 'email', 'firstName', 'lastName', 'phone', 'status', 'createdAt', 'updatedAt'],
     });
 
     return {
@@ -56,7 +73,8 @@ export class UserService {
   async findOne(id: string): Promise<{ user: User; message: string }> {
     const user = await this.userRepository.findOne({
       where: { id },
-      select: ['id', 'email', 'firstName', 'lastName', 'phone', 'address', 'city', 'state', 'postalCode', 'country', 'role', 'status', 'lastLogin', 'isEmailVerified', 'createdAt', 'updatedAt'],
+      relations: ['role', 'role.permissions'],
+      select: ['id', 'email', 'firstName', 'lastName', 'phone', 'address', 'city', 'state', 'postalCode', 'country', 'status', 'lastLogin', 'isEmailVerified', 'createdAt', 'updatedAt'],
     });
 
     if (!user) {
@@ -72,6 +90,7 @@ export class UserService {
   async findByEmail(email: string): Promise<User | null> {
     return await this.userRepository.findOne({
       where: { email },
+      relations: ['role', 'role.permissions'],
     });
   }
 
@@ -93,6 +112,17 @@ export class UserService {
       if (existingUser) {
         throw new ConflictException(USER_MESSAGES.ALREADY_EXISTS);
       }
+    }
+
+    if ((updateUserDto as any).roleId) {
+      const role = await this.roleRepository.findOne({
+        where: { id: (updateUserDto as any).roleId },
+      });
+      if (!role) {
+        throw new NotFoundException('Role not found');
+      }
+      user.role = role;
+      delete (updateUserDto as any).roleId;
     }
 
     Object.assign(user, updateUserDto);

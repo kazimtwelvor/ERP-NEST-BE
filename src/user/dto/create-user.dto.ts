@@ -97,13 +97,12 @@ export class CreateUserDto {
   country?: string;
 
   @ApiPropertyOptional({
-    description: 'User role',
-    enum: ['admin', 'manager', 'employee', 'customer'],
-    default: 'employee',
+    description: 'Role ID (UUID)',
+    example: '123e4567-e89b-12d3-a456-426614174000',
   })
-  @IsEnum(['admin', 'manager', 'employee', 'customer'])
+  @IsString()
   @IsOptional()
-  role?: string;
+  roleId?: string;
 
   @ApiPropertyOptional({
     description: 'User status',

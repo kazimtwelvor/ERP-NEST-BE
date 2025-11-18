@@ -1,0 +1,22 @@
+import { DataSource } from 'typeorm';
+import { permissionsSeed } from './permissions.seed';
+import { rolesSeed } from './roles.seed';
+
+export const runSeeds = async (dataSource: DataSource): Promise<void> => {
+  try {
+
+    console.log('📋 Seeding permissions...');
+    await permissionsSeed(dataSource);
+    console.log('✓ Permissions seeded successfully\n');
+
+    console.log('👥 Seeding roles...');
+    await rolesSeed(dataSource);
+    console.log('✓ Roles seeded successfully\n');
+
+    console.log('✅ Database seeding completed successfully!');
+  } catch (error) {
+    console.error('❌ Error seeding database:', error);
+    throw error;
+  }
+};
+
