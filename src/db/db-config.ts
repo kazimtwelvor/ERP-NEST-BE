@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { User } from '../user/entities/user.entity';
 import { Role } from '../role-permission/entities/role.entity';
 import { Permission } from '../role-permission/entities/permission.entity';
+import { Department } from '../department/entities/department.entity';
 
 export const getDatabaseConfig = (
   configService: ConfigService,
@@ -25,7 +26,7 @@ export const getDatabaseConfig = (
     username: configService.get<string>('DB_USERNAME', 'postgres'),
     password: configService.get<string>('DB_PASSWORD', 'postgres'),
     database: configService.get<string>('DB_DATABASE', 'erp_database'),
-    entities: [User, Role, Permission],
+    entities: [User, Role, Permission, Department],
     synchronize:
       dbSynchronize !== undefined
         ? dbSynchronize === 'true'

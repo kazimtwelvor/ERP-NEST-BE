@@ -9,6 +9,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
 import { Role } from '../role-permission/entities/role.entity';
+import { Department } from '../department/entities/department.entity';
 import { USER_MESSAGES } from './messages/user.messages';
 
 @Injectable()
@@ -18,6 +19,8 @@ export class UserService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Role)
     private readonly roleRepository: Repository<Role>,
+    @InjectRepository(Department)
+    private readonly departmentRepository: Repository<Department>,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<{ user: User; message: string }> {
@@ -42,9 +45,20 @@ export class UserService {
       }
     }
 
+    let department: Department | null = null;
+    if (createUserDto.departmentId) {
+      department = await this.departmentRepository.findOne({
+        where: { id: createUserDto.departmentId },
+      });
+      if (!department) {
+        throw new NotFoundException('Department not found');
+      }
+    }
+
     const user = this.userRepository.create({
       ...createUserDto,
       role,
+      department,
       status: createUserDto.status || 'active',
     });
 
@@ -60,7 +74,7 @@ export class UserService {
 
   async findAll(): Promise<{ users: User[]; message: string }> {
     const users = await this.userRepository.find({
-      relations: ['role'],
+      relations: ['role', 'department'],
       select: ['id', 'email', 'firstName', 'lastName', 'phone', 'status', 'createdAt', 'updatedAt'],
     });
 
@@ -73,7 +87,7 @@ export class UserService {
   async findOne(id: string): Promise<{ user: User; message: string }> {
     const user = await this.userRepository.findOne({
       where: { id },
-      relations: ['role', 'role.permissions'],
+      relations: ['role', 'role.permissions', 'department'],
       select: ['id', 'email', 'firstName', 'lastName', 'phone', 'address', 'city', 'state', 'postalCode', 'country', 'status', 'lastLogin', 'isEmailVerified', 'createdAt', 'updatedAt'],
     });
 
@@ -90,7 +104,7 @@ export class UserService {
   async findByEmail(email: string): Promise<User | null> {
     return await this.userRepository.findOne({
       where: { email },
-      relations: ['role', 'role.permissions'],
+      relations: ['role', 'role.permissions', 'department'],
     });
   }
 
@@ -123,6 +137,21 @@ export class UserService {
       }
       user.role = role;
       delete (updateUserDto as any).roleId;
+    }
+
+    if ((updateUserDto as any).departmentId !== undefined) {
+      if ((updateUserDto as any).departmentId) {
+        const department = await this.departmentRepository.findOne({
+          where: { id: (updateUserDto as any).departmentId },
+        });
+        if (!department) {
+          throw new NotFoundException('Department not found');
+        }
+        user.department = department;
+      } else {
+        user.department = null;
+      }
+      delete (updateUserDto as any).departmentId;
     }
 
     Object.assign(user, updateUserDto);
