@@ -8,7 +8,7 @@ export default () => ({
     username: process.env.DB_USERNAME || 'postgres',
     password: process.env.DB_PASSWORD || 'postgres',
     database: process.env.DB_DATABASE || 'erp_database',
-    synchronize: process.env.DB_SYNCHRONIZE === 'true',
+    synchronize: process.env.DB_SYNCHRONIZE === 'false',
     logging: process.env.DB_LOGGING === 'true',
     ssl: process.env.DB_SSL === 'true',
     sslRejectUnauthorized:
