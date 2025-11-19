@@ -83,7 +83,7 @@ export class User {
   @ApiPropertyOptional({ description: 'User department', type: () => Department })
   @ManyToOne(() => Department, { nullable: true, eager: true })
   @JoinColumn({ name: 'department_id' })
-  department: Department;
+  department: Department | null;
 
   @ApiPropertyOptional({ description: 'Last login timestamp' })
   @Column({ name: 'last_login', nullable: true })
