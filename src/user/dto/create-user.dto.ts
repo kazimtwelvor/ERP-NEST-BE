@@ -105,6 +105,14 @@ export class CreateUserDto {
   roleId?: string;
 
   @ApiPropertyOptional({
+    description: 'Department ID (UUID)',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsString()
+  @IsOptional()
+  departmentId?: string;
+
+  @ApiPropertyOptional({
     description: 'User status',
     enum: ['active', 'inactive', 'suspended'],
     default: 'active',

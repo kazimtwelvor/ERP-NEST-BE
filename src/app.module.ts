@@ -8,6 +8,7 @@ import { AppService } from './app.service';
 import { UserModule } from './user/user.module';
 import { RolePermissionModule } from './role-permission/role-permission.module';
 import { getDatabaseConfig } from './db/db-config';
+import { DepartmentModule } from './department/department.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -31,6 +32,7 @@ import configuration from './config/configuration';
     ScheduleModule.forRoot(),
     UserModule,
     RolePermissionModule,
+    DepartmentModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -6,13 +6,14 @@ import {
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
-  BeforeInsert,
+  BeforeInsert, 
   BeforeUpdate,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import * as bcrypt from 'bcrypt';
 import { Role } from '../../role-permission/entities/role.entity';
+import { Department } from '../../department/entities/department.entity';
 
 @Entity('users')
 export class User {
@@ -78,6 +79,11 @@ export class User {
   @ManyToOne(() => Role, { nullable: false, eager: true })
   @JoinColumn({ name: 'role_id' })
   role: Role;
+
+  @ApiPropertyOptional({ description: 'User department', type: () => Department })
+  @ManyToOne(() => Department, { nullable: true, eager: true })
+  @JoinColumn({ name: 'department_id' })
+  department: Department;
 
   @ApiPropertyOptional({ description: 'Last login timestamp' })
   @Column({ name: 'last_login', nullable: true })
