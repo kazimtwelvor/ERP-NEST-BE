@@ -1,7 +1,8 @@
 import { Controller, Post, Body, Get, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { SignUpDto, LoginDto, ForgotPasswordDto, ResetPasswordDto } from './dto/auth.dto';
+import { SignUpDto, LoginDto } from './dto/auth.dto';
+import { VerifyEmailDto, ResendVerificationDto } from '../user/dto/verify-email.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @ApiTags('Authentication')
@@ -21,16 +22,18 @@ export class AuthController {
     return this.authService.login(loginDto);
   }
 
-  @Post('forgot-password')
-  @ApiOperation({ summary: 'Request password reset' })
-  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
-    return this.authService.forgotPassword(forgotPasswordDto);
+  // Password reset endpoints can be added later if needed
+
+  @Post('verify-email')
+  @ApiOperation({ summary: 'Verify user email with verification code' })
+  async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
+    return this.authService.verifyEmail(verifyEmailDto);
   }
 
-  @Post('reset-password')
-  @ApiOperation({ summary: 'Reset password with token' })
-  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
-    return this.authService.resetPassword(resetPasswordDto);
+  @Post('resend-verification')
+  @ApiOperation({ summary: 'Resend verification code to user email' })
+  async resendVerificationCode(@Body() resendDto: ResendVerificationDto) {
+    return this.authService.resendVerificationCode(resendDto);
   }
 
   @Get('profile')

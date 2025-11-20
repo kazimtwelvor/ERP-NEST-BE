@@ -3,9 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { User } from '../entities/user.entity';
-import { SignUpDto, LoginDto, ForgotPasswordDto, ResetPasswordDto } from './dto/auth.dto';
-import { randomBytes } from 'crypto';
+import { User } from '../user/entities/user.entity';
+import { SignUpDto, LoginDto } from './dto/auth.dto';
+import { VerifyEmailDto, ResendVerificationDto } from '../user/dto/verify-email.dto';
+import { randomInt } from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -26,15 +27,30 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(signUpDto.password, 10);
     
+    // Generate verification code
+    const verificationCode = this.generateVerificationCode();
+    
     const user = this.userRepository.create({
       ...signUpDto,
       password: hashedPassword,
+      verificationCode,
+      isEmailVerified: false,
     });
 
     await this.userRepository.save(user);
     
-    const { password, ...result } = user;
-    return result;
+    // In production, send verification email here
+    console.log(`Verification code for ${user.email}: ${verificationCode}`);
+    
+    const { password, verificationCode: code, ...result } = user;
+    return {
+      ...result,
+      message: 'User registered successfully. Please verify your email.',
+    };
+  }
+
+  private generateVerificationCode(): string {
+    return randomInt(100000, 999999).toString();
   }
 
   async login(loginDto: LoginDto) {
@@ -46,9 +62,17 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    if (!user.isActive) {
+    if (user.status !== 'active') {
       throw new UnauthorizedException('Account is deactivated');
     }
+
+    if (!user.isEmailVerified) {
+      throw new UnauthorizedException('Please verify your email before logging in');
+    }
+
+    // Update last login
+    user.lastLogin = new Date();
+    await this.userRepository.save(user);
 
     const payload = { email: user.email, sub: user.id };
     return {
@@ -62,53 +86,61 @@ export class AuthService {
     };
   }
 
-  async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+  // Password reset functionality can be added later if needed
+  // This would require adding resetToken and resetTokenExpiry fields to User entity
+
+  async verifyEmail(verifyEmailDto: VerifyEmailDto) {
     const user = await this.userRepository.findOne({
-      where: { email: forgotPasswordDto.email },
+      where: { email: verifyEmailDto.email },
     });
 
     if (!user) {
-      return { message: 'If email exists, reset link will be sent' };
+      throw new BadRequestException('User not found');
     }
 
-    const resetToken = randomBytes(32).toString('hex');
-    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour
+    if (user.isEmailVerified) {
+      throw new BadRequestException('Email is already verified');
+    }
 
-    await this.userRepository.update(user.id, {
-      resetToken,
-      resetTokenExpiry,
-    });
+    if (user.verificationCode !== verifyEmailDto.code) {
+      throw new BadRequestException('Invalid verification code');
+    }
 
-    // In production, send email with reset link
-    console.log(`Reset token for ${user.email}: ${resetToken}`);
-    
-    return { message: 'If email exists, reset link will be sent' };
+    user.isEmailVerified = true;
+    user.verificationCode = '';
+    await this.userRepository.save(user);
+
+    return { message: 'Email verified successfully' };
   }
 
-  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+  async resendVerificationCode(resendDto: ResendVerificationDto) {
     const user = await this.userRepository.findOne({
-      where: { resetToken: resetPasswordDto.token },
+      where: { email: resendDto.email },
     });
 
-    if (!user || !user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
-      throw new BadRequestException('Invalid or expired reset token');
+    if (!user) {
+      throw new BadRequestException('User not found');
     }
 
-    const hashedPassword = await bcrypt.hash(resetPasswordDto.newPassword, 10);
+    if (user.isEmailVerified) {
+      throw new BadRequestException('Email is already verified');
+    }
 
-    await this.userRepository.update(user.id, {
-      password: hashedPassword,
-      resetToken: null,
-      resetTokenExpiry: null,
-    });
+    const verificationCode = this.generateVerificationCode();
+    user.verificationCode = verificationCode;
+    await this.userRepository.save(user);
 
-    return { message: 'Password reset successfully' };
+    // In production, send verification email here
+    console.log(`New verification code for ${user.email}: ${verificationCode}`);
+
+    return { message: 'Verification code sent successfully' };
   }
 
   async getProfile(userId: string) {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      select: ['id', 'email', 'firstName', 'lastName', 'isActive', 'createdAt'],
+      relations: ['role', 'department'],
+      select: ['id', 'email', 'firstName', 'lastName', 'status', 'isEmailVerified', 'createdAt'],
     });
 
     if (!user) {

@@ -2,15 +2,18 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { VerifyEmailDto, ResendVerificationDto } from './dto/verify-email.dto';
 import { User } from './entities/user.entity';
 import { Role } from '../role-permission/entities/role.entity';
 import { Department } from '../department/entities/department.entity';
 import { USER_MESSAGES } from './messages/user.messages';
+import { randomInt } from 'crypto';
 
 @Injectable()
 export class UserService {
@@ -55,14 +58,22 @@ export class UserService {
       }
     }
 
+    const verificationCode = this.generateVerificationCode();
+
+    const { roleId, departmentId, ...userData } = createUserDto;
+
     const user = this.userRepository.create({
-      ...createUserDto,
+      ...userData,
       role,
       department,
       status: createUserDto.status || 'active',
+      verificationCode,
+      isEmailVerified: false,
     });
 
     const savedUser = await this.userRepository.save(user);
+    
+    console.log(`Verification code for ${savedUser.email}: ${verificationCode}`);
     
     const { password, ...userWithoutPassword } = savedUser;
 
@@ -88,7 +99,7 @@ export class UserService {
     const user = await this.userRepository.findOne({
       where: { id },
       relations: ['role', 'role.permissions', 'department'],
-      select: ['id', 'email', 'firstName', 'lastName', 'phone', 'address', 'city', 'state', 'postalCode', 'country', 'status', 'lastLogin', 'isEmailVerified', 'createdAt', 'updatedAt'],
+      select: ['id', 'email', 'firstName', 'lastName', 'phone', 'address', 'city', 'state', 'postalCode', 'status', 'lastLogin', 'isEmailVerified', 'createdAt', 'updatedAt'],
     });
 
     if (!user) {
@@ -176,6 +187,70 @@ export class UserService {
 
     return {
       message: USER_MESSAGES.DELETED,
+    };
+  }
+
+  /**
+   * Generate a random 6-digit verification code
+   */
+  private generateVerificationCode(): string {
+    return randomInt(100000, 999999).toString();
+  }
+
+  /**
+   * Verify user email with verification code
+   */
+  async verifyEmail(verifyEmailDto: VerifyEmailDto): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({
+      where: { email: verifyEmailDto.email },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.isEmailVerified) {
+      throw new BadRequestException('Email is already verified');
+    }
+
+    if (user.verificationCode !== verifyEmailDto.code) {
+      throw new BadRequestException('Invalid verification code');
+    }
+
+    user.isEmailVerified = true;
+    user.verificationCode = '';
+    await this.userRepository.save(user);
+
+    return {
+      message: 'Email verified successfully',
+    };
+  }
+
+  /**
+   * Resend verification code
+   */
+  async resendVerificationCode(resendDto: ResendVerificationDto): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({
+      where: { email: resendDto.email },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.isEmailVerified) {
+      throw new BadRequestException('Email is already verified');
+    }
+
+    const verificationCode = this.generateVerificationCode();
+    user.verificationCode = verificationCode;
+    await this.userRepository.save(user);
+
+    // In production, send verification email here
+    console.log(`New verification code for ${user.email}: ${verificationCode}`);
+
+    return {
+      message: 'Verification code sent successfully',
     };
   }
 }
