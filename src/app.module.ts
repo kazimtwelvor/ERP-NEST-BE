@@ -10,6 +10,9 @@ import { RolePermissionModule } from './role-permission/role-permission.module';
 import { getDatabaseConfig } from './db/db-config';
 import { DepartmentModule } from './department/department.module';
 import configuration from './config/configuration';
+import { AuthModule } from './auth/auth.module';
+
+
 
 @Module({
   imports: [
@@ -33,6 +36,7 @@ import configuration from './config/configuration';
     UserModule,
     RolePermissionModule,
     DepartmentModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
