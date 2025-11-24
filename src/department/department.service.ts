@@ -5,12 +5,15 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Brackets } from 'typeorm';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
+import { GetDepartmentsDto } from './dto/get-departments.dto';
 import { Department } from './entities/department.entity';
 import { User } from '../user/entities/user.entity';
 import { DEPARTMENT_MESSAGES } from './messages/department.messages';
+import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
+import { SortEnum } from '../common/dto/pagination.dto';
 
 @Injectable()
 export class DepartmentService {
@@ -66,15 +69,64 @@ export class DepartmentService {
     };
   }
 
-  async findAll(): Promise<{ departments: Department[]; message: string }> {
-    const departments = await this.departmentRepository.find({
-      relations: ['users', 'manager'],
-      order: { name: 'ASC' },
-    });
+  async findAll(
+    getDepartmentsDto: GetDepartmentsDto,
+  ): Promise<PaginatedResponse<Department>> {
+    const {
+      query,
+      page = 1,
+      limit = 10,
+      status,
+      managerId,
+      sort = SortEnum.DESC,
+    } = getDepartmentsDto;
+
+    const qb = this.departmentRepository
+      .createQueryBuilder('department')
+      .leftJoinAndSelect('department.manager', 'manager')
+      .leftJoinAndSelect('department.users', 'users');
+
+    // Search query
+    if (query) {
+      qb.andWhere(
+        new Brackets((qb) => {
+          qb.where('LOWER(department.name) LIKE LOWER(:query)', {
+            query: `%${query}%`,
+          })
+            .orWhere('LOWER(department.code) LIKE LOWER(:query)', {
+              query: `%${query}%`,
+            })
+            .orWhere('LOWER(department.description) LIKE LOWER(:query)', {
+              query: `%${query}%`,
+            });
+        }),
+      );
+    }
+
+    // Filters
+    if (status) {
+      qb.andWhere('department.status = :status', { status });
+    }
+
+    if (managerId) {
+      qb.andWhere('manager.id = :managerId', { managerId });
+    }
+
+    // Sorting
+    qb.orderBy('department.createdAt', sort);
+
+    // Pagination
+    qb.skip((page - 1) * limit).take(limit);
+
+    const [departments, total] = await qb.getManyAndCount();
+    const lastPage = Math.ceil(total / limit);
 
     return {
-      departments,
       message: DEPARTMENT_MESSAGES.LIST_FETCHED,
+      data: departments,
+      page,
+      total,
+      lastPage,
     };
   }
 

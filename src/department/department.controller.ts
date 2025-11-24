@@ -8,6 +8,7 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -19,7 +20,9 @@ import {
 import { DepartmentService } from './department.service';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
+import { GetDepartmentsDto } from './dto/get-departments.dto';
 import { Department } from './entities/department.entity';
+import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
 
 @ApiTags('Departments')
 @ApiBearerAuth()
@@ -48,14 +51,28 @@ export class DepartmentController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all departments' })
+  @ApiOperation({ summary: 'Get all departments with pagination and search' })
   @ApiResponse({
     status: 200,
     description: 'List of departments retrieved successfully',
-    type: [Department],
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        data: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/Department' },
+        },
+        page: { type: 'number' },
+        total: { type: 'number' },
+        lastPage: { type: 'number' },
+      },
+    },
   })
-  async findAll() {
-    return this.departmentService.findAll();
+  async findAll(
+    @Query() getDepartmentsDto: GetDepartmentsDto,
+  ): Promise<PaginatedResponse<Department>> {
+    return this.departmentService.findAll(getDepartmentsDto);
   }
 
   @Get(':id')

@@ -8,6 +8,7 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -15,12 +16,15 @@ import {
   ApiResponse,
   ApiParam,
   ApiBearerAuth,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { VerifyEmailDto, ResendVerificationDto } from './dto/verify-email.dto';
+import { GetUsersDto } from './dto/get-users.dto';
 import { User } from './entities/user.entity';
+import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -61,14 +65,23 @@ export class UserController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all users' })
+  @ApiOperation({ summary: 'Get all users with pagination and search' })
   @ApiResponse({
     status: 200,
     description: 'List of users retrieved successfully',
-    type: [User],
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        data: { type: 'array', items: { $ref: '#/components/schemas/User' } },
+        page: { type: 'number' },
+        total: { type: 'number' },
+        lastPage: { type: 'number' },
+      },
+    },
   })
-  async findAll() {
-    return this.userService.findAll();
+  async findAll(@Query() getUsersDto: GetUsersDto): Promise<PaginatedResponse<User>> {
+    return this.userService.findAll(getUsersDto);
   }
 
   @Get(':id')
