@@ -5,9 +5,13 @@ import { UserController } from './user.controller';
 import { User } from './entities/user.entity';
 import { Role } from '../role-permission/entities/role.entity';
 import { Department } from '../department/entities/department.entity';
+import { EmailModule } from '../email/email.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Role, Department])],
+  imports: [
+    TypeOrmModule.forFeature([User, Role, Department]),
+    EmailModule,
+  ],
   controllers: [UserController],
   providers: [UserService],
   exports: [UserService],

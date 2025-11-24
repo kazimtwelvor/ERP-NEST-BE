@@ -13,6 +13,7 @@ import { User } from './entities/user.entity';
 import { Role } from '../role-permission/entities/role.entity';
 import { Department } from '../department/entities/department.entity';
 import { USER_MESSAGES } from './messages/user.messages';
+import { EmailService } from '../email/email.service';
 import { randomInt } from 'crypto';
 
 @Injectable()
@@ -24,6 +25,7 @@ export class UserService {
     private readonly roleRepository: Repository<Role>,
     @InjectRepository(Department)
     private readonly departmentRepository: Repository<Department>,
+    private readonly emailService: EmailService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<{ user: User; message: string }> {
@@ -73,7 +75,18 @@ export class UserService {
 
     const savedUser = await this.userRepository.save(user);
     
-    console.log(`Verification code for ${savedUser.email}: ${verificationCode}`);
+    // Send verification email
+    try {
+      await this.emailService.sendVerificationEmail(
+        savedUser.email,
+        verificationCode,
+        savedUser.firstName,
+      );
+    } catch (error) {
+      console.error('❌ Failed to send verification email:', error.message || error);
+      console.log(`📧 Verification code for ${savedUser.email}: ${verificationCode}`);
+      // Continue even if email fails - code is still saved
+    }
     
     const { password, ...userWithoutPassword } = savedUser;
 
@@ -246,11 +259,20 @@ export class UserService {
     user.verificationCode = verificationCode;
     await this.userRepository.save(user);
 
-    // In production, send verification email here
-    console.log(`New verification code for ${user.email}: ${verificationCode}`);
+    // Send verification email
+    try {
+      await this.emailService.sendVerificationEmail(
+        user.email,
+        verificationCode,
+        user.firstName,
+      );
+    } catch (error) {
+      console.error('Failed to send verification email:', error);
+      throw new BadRequestException('Failed to send verification email. Please try again later.');
+    }
 
     return {
-      message: 'Verification code sent successfully',
+      message: 'Verification code sent successfully. Please check your email.',
     };
   }
 }
