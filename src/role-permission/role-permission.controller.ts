@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Body,
   Patch,
   Param,
@@ -83,7 +84,7 @@ export class RolePermissionController {
     return this.rolePermissionService.updateRole(id, updateRoleDto);
   }
 
-  @Post('roles/:id/permissions')
+  @Put('roles/:id/permissions')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Assign permissions to a role' })
   @ApiParam({ name: 'id', description: 'Role ID (UUID)' })
