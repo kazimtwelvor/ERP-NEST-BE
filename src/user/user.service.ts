@@ -5,15 +5,18 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Brackets } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { VerifyEmailDto, ResendVerificationDto } from './dto/verify-email.dto';
+import { GetUsersDto } from './dto/get-users.dto';
 import { User } from './entities/user.entity';
 import { Role } from '../role-permission/entities/role.entity';
 import { Department } from '../department/entities/department.entity';
 import { USER_MESSAGES } from './messages/user.messages';
 import { EmailService } from '../email/email.service';
+import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
+import { SortEnum } from '../common/dto/pagination.dto';
 import { randomInt } from 'crypto';
 
 @Injectable()
@@ -96,15 +99,94 @@ export class UserService {
     };
   }
 
-  async findAll(): Promise<{ users: User[]; message: string }> {
-    const users = await this.userRepository.find({
-      relations: ['role', 'department'],
-      select: ['id', 'email', 'firstName', 'lastName', 'phone', 'status', 'createdAt', 'updatedAt'],
-    });
+  async findAll(getUsersDto: GetUsersDto): Promise<PaginatedResponse<User>> {
+    const {
+      query,
+      page = 1,
+      limit = 10,
+      roleId,
+      departmentId,
+      status,
+      isEmailVerified,
+      sort = SortEnum.DESC,
+    } = getUsersDto;
+
+    const qb = this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role')
+      .leftJoinAndSelect('user.department', 'department')
+      .select([
+        'user.id',
+        'user.email',
+        'user.firstName',
+        'user.lastName',
+        'user.phone',
+        'user.status',
+        'user.isEmailVerified',
+        'user.createdAt',
+        'user.updatedAt',
+        'role.id',
+        'role.name',
+        'role.displayName',
+        'department.id',
+        'department.name',
+        'department.code',
+      ]);
+
+    // Search query
+    if (query) {
+      qb.andWhere(
+        new Brackets((qb) => {
+          qb.where('LOWER(user.firstName) LIKE LOWER(:query)', {
+            query: `%${query}%`,
+          })
+            .orWhere('LOWER(user.lastName) LIKE LOWER(:query)', {
+              query: `%${query}%`,
+            })
+            .orWhere('LOWER(user.email) LIKE LOWER(:query)', {
+              query: `%${query}%`,
+            })
+            .orWhere('LOWER(user.phone) LIKE LOWER(:query)', {
+              query: `%${query}%`,
+            });
+        }),
+      );
+    }
+
+    // Filters
+    if (roleId) {
+      qb.andWhere('role.id = :roleId', { roleId });
+    }
+
+    if (departmentId) {
+      qb.andWhere('department.id = :departmentId', { departmentId });
+    }
+
+    if (status) {
+      qb.andWhere('user.status = :status', { status });
+    }
+
+    if (isEmailVerified !== undefined) {
+      qb.andWhere('user.is_email_verified = :isEmailVerified', {
+        isEmailVerified: isEmailVerified === 'true',
+      });
+    }
+
+    // Sorting
+    qb.orderBy('user.createdAt', sort);
+
+    // Pagination
+    qb.skip((page - 1) * limit).take(limit);
+
+    const [users, total] = await qb.getManyAndCount();
+    const lastPage = Math.ceil(total / limit);
 
     return {
-      users,
       message: USER_MESSAGES.LIST_FETCHED,
+      data: users,
+      page,
+      total,
+      lastPage,
     };
   }
 
