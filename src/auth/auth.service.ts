@@ -6,6 +6,7 @@ import * as bcrypt from 'bcrypt';
 import { User } from '../user/entities/user.entity';
 import { SignUpDto, LoginDto } from './dto/auth.dto';
 import { VerifyEmailDto, ResendVerificationDto } from '../user/dto/verify-email.dto';
+import { EmailService } from '../email/email.service';
 import { randomInt } from 'crypto';
 
 @Injectable()
@@ -14,6 +15,7 @@ export class AuthService {
     @InjectRepository(User)
     private userRepository: Repository<User>,
     private jwtService: JwtService,
+    private emailService: EmailService,
   ) {}
 
   async signUp(signUpDto: SignUpDto) {
@@ -39,13 +41,23 @@ export class AuthService {
 
     await this.userRepository.save(user);
     
-    // In production, send verification email here
-    console.log(`Verification code for ${user.email}: ${verificationCode}`);
+    // Send verification email
+    try {
+      await this.emailService.sendVerificationEmail(
+        user.email,
+        verificationCode,
+        user.firstName,
+      );
+    } catch (error) {
+      console.error('❌ Failed to send verification email:', error.message || error);
+      console.log(`📧 Verification code for ${user.email}: ${verificationCode}`);
+      // Continue even if email fails - code is still saved
+    }
     
     const { password, verificationCode: code, ...result } = user;
     return {
       ...result,
-      message: 'User registered successfully. Please verify your email.',
+      message: 'User registered successfully. Please check your email to verify your account.',
     };
   }
 
@@ -130,10 +142,19 @@ export class AuthService {
     user.verificationCode = verificationCode;
     await this.userRepository.save(user);
 
-    // In production, send verification email here
-    console.log(`New verification code for ${user.email}: ${verificationCode}`);
+    // Send verification email
+    try {
+      await this.emailService.sendVerificationEmail(
+        user.email,
+        verificationCode,
+        user.firstName,
+      );
+    } catch (error) {
+      console.error('Failed to send verification email:', error);
+      throw new BadRequestException('Failed to send verification email. Please try again later.');
+    }
 
-    return { message: 'Verification code sent successfully' };
+    return { message: 'Verification code sent successfully. Please check your email.' };
   }
 
   async getProfile(userId: string) {
