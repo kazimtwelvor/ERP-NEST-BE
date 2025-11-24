@@ -1,7 +1,7 @@
 import { Controller, Post, Body, Get, UseGuards, Request, Query, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { SignUpDto, LoginDto } from './dto/auth.dto';
+import { SignUpDto, LoginDto, ForgotPasswordDto, ResetPasswordDto } from './dto/auth.dto';
 import { VerifyEmailDto, ResendVerificationDto } from '../user/dto/verify-email.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import type { Response } from 'express';
@@ -23,7 +23,29 @@ export class AuthController {
     return this.authService.login(loginDto);
   }
 
-  // Password reset endpoints can be added later if needed
+  @Post('forgot-password')
+  @ApiOperation({ summary: 'Request password reset link' })
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(forgotPasswordDto);
+  }
+
+  @Post('reset-password')
+  @ApiOperation({ summary: 'Reset password with token' })
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.authService.resetPassword(resetPasswordDto);
+  }
+
+  @Get('reset-password')
+  @ApiOperation({ summary: 'Reset password page (GET - via email link)' })
+  @ApiQuery({ name: 'token', required: true, description: 'Password reset token' })
+  async resetPasswordGet(
+    @Query('token') token: string,
+    @Res() res: Response,
+  ) {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const redirectUrl = `${frontendUrl}/auth/reset-password?token=${encodeURIComponent(token)}`;
+    return res.redirect(redirectUrl);
+  }
 
   @Post('verify-email')
   @ApiOperation({ summary: 'Verify user email with verification code (POST)' })

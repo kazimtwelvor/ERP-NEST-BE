@@ -93,6 +93,14 @@ export class User {
   @Column({ type: 'varchar', default: '', name: 'verification_code' })
   verificationCode: string;
 
+  @ApiPropertyOptional({ description: 'Password reset token' })
+  @Column({ type: 'varchar', nullable: true, name: 'reset_token' })
+  resetToken: string | null;
+
+  @ApiPropertyOptional({ description: 'Password reset token expiry' })
+  @Column({ type: 'timestamp', nullable: true, name: 'reset_token_expiry' })
+  resetTokenExpiry: Date | null;
+
   @ApiProperty({ description: 'Account creation timestamp' })
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
