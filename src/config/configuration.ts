@@ -20,5 +20,10 @@ export default () => ({
     secret: process.env.JWT_SECRET || 'your-secret-key',
     expiresIn: process.env.JWT_EXPIRES_IN || '1d',
   },
+  email: {
+    user: process.env.EMAIL_USER || '',
+    password: process.env.EMAIL_PASSWORD || '',
+  },
+  apiUrl: process.env.API_URL || process.env.FRONTEND_URL || 'http://localhost:3000/api',
 });
 

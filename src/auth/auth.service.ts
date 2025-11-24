@@ -3,9 +3,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { User } from '../entities/user.entity';
+import { User } from '../user/entities/user.entity';
+import { VerifyEmailDto, ResendVerificationDto } from '../user/dto/verify-email.dto';
+import { EmailService } from '../email/email.service';
+import { randomInt, randomBytes } from 'crypto';
 import { SignUpDto, LoginDto, ForgotPasswordDto, ResetPasswordDto } from './dto/auth.dto';
-import { randomBytes } from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -13,6 +15,7 @@ export class AuthService {
     @InjectRepository(User)
     private userRepository: Repository<User>,
     private jwtService: JwtService,
+    private emailService: EmailService,
   ) {}
 
   async signUp(signUpDto: SignUpDto) {
@@ -26,15 +29,40 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(signUpDto.password, 10);
     
+    // Generate verification code
+    const verificationCode = this.generateVerificationCode();
+    
     const user = this.userRepository.create({
       ...signUpDto,
       password: hashedPassword,
+      verificationCode,
+      isEmailVerified: false,
     });
 
     await this.userRepository.save(user);
     
-    const { password, ...result } = user;
-    return result;
+    // Send verification email
+    try {
+      await this.emailService.sendVerificationEmail(
+        user.email,
+        verificationCode,
+        user.firstName,
+      );
+    } catch (error) {
+      console.error('❌ Failed to send verification email:', error.message || error);
+      console.log(`📧 Verification code for ${user.email}: ${verificationCode}`);
+      // Continue even if email fails - code is still saved
+    }
+    
+    const { password, verificationCode: code, ...result } = user;
+    return {
+      ...result,
+      message: 'User registered successfully. Please check your email to verify your account.',
+    };
+  }
+
+  private generateVerificationCode(): string {
+    return randomInt(100000, 999999).toString();
   }
 
   async login(loginDto: LoginDto) {
@@ -46,9 +74,17 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    if (!user.isActive) {
+    if (user.status !== 'active') {
       throw new UnauthorizedException('Account is deactivated');
     }
+
+    if (!user.isEmailVerified) {
+      throw new UnauthorizedException('Please verify your email before logging in');
+    }
+
+    // Update last login
+    user.lastLogin = new Date();
+    await this.userRepository.save(user);
 
     const payload = { email: user.email, sub: user.id };
     return {
@@ -67,22 +103,37 @@ export class AuthService {
       where: { email: forgotPasswordDto.email },
     });
 
+    // Don't reveal if user exists or not for security
     if (!user) {
-      return { message: 'If email exists, reset link will be sent' };
+      return {
+        message: 'If an account with that email exists, a password reset link has been sent.',
+      };
     }
 
+    // Generate reset token
     const resetToken = randomBytes(32).toString('hex');
-    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour
+    const resetTokenExpiry = new Date();
+    resetTokenExpiry.setHours(resetTokenExpiry.getHours() + 1); // Token expires in 1 hour
 
-    await this.userRepository.update(user.id, {
-      resetToken,
-      resetTokenExpiry,
-    });
+    user.resetToken = resetToken;
+    user.resetTokenExpiry = resetTokenExpiry;
+    await this.userRepository.save(user);
 
-    // In production, send email with reset link
-    console.log(`Reset token for ${user.email}: ${resetToken}`);
-    
-    return { message: 'If email exists, reset link will be sent' };
+    // Send password reset email
+    try {
+      await this.emailService.sendPasswordResetEmail(
+        user.email,
+        resetToken,
+        user.firstName,
+      );
+    } catch (error) {
+      console.error('❌ Failed to send password reset email:', error.message || error);
+      // Don't reveal email sending failure to user
+    }
+
+    return {
+      message: 'If an account with that email exists, a password reset link has been sent.',
+    };
   }
 
   async resetPassword(resetPasswordDto: ResetPasswordDto) {
@@ -90,25 +141,87 @@ export class AuthService {
       where: { resetToken: resetPasswordDto.token },
     });
 
-    if (!user || !user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
+    if (!user) {
       throw new BadRequestException('Invalid or expired reset token');
     }
 
+    if (!user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
+      throw new BadRequestException('Reset token has expired. Please request a new one.');
+    }
+
+    // Hash new password
     const hashedPassword = await bcrypt.hash(resetPasswordDto.newPassword, 10);
 
-    await this.userRepository.update(user.id, {
-      password: hashedPassword,
-      resetToken: null,
-      resetTokenExpiry: null,
+    // Update password and clear reset token
+    user.password = hashedPassword;
+    user.resetToken = null;
+    user.resetTokenExpiry = null;
+    await this.userRepository.save(user);
+
+    return { message: 'Password has been reset successfully. You can now login with your new password.' };
+  }
+
+  async verifyEmail(verifyEmailDto: VerifyEmailDto) {
+    const user = await this.userRepository.findOne({
+      where: { email: verifyEmailDto.email },
     });
 
-    return { message: 'Password reset successfully' };
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    if (user.isEmailVerified) {
+      throw new BadRequestException('Email is already verified');
+    }
+
+    if (user.verificationCode !== verifyEmailDto.code) {
+      throw new BadRequestException('Invalid verification code');
+    }
+
+    user.isEmailVerified = true;
+    user.verificationCode = '';
+    await this.userRepository.save(user);
+
+    return { message: 'Email verified successfully' };
+  }
+
+  async resendVerificationCode(resendDto: ResendVerificationDto) {
+    const user = await this.userRepository.findOne({
+      where: { email: resendDto.email },
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    if (user.isEmailVerified) {
+      throw new BadRequestException('Email is already verified');
+    }
+
+    const verificationCode = this.generateVerificationCode();
+    user.verificationCode = verificationCode;
+    await this.userRepository.save(user);
+
+    // Send verification email
+    try {
+      await this.emailService.sendVerificationEmail(
+        user.email,
+        verificationCode,
+        user.firstName,
+      );
+    } catch (error) {
+      console.error('Failed to send verification email:', error);
+      throw new BadRequestException('Failed to send verification email. Please try again later.');
+    }
+
+    return { message: 'Verification code sent successfully. Please check your email.' };
   }
 
   async getProfile(userId: string) {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      select: ['id', 'email', 'firstName', 'lastName', 'isActive', 'createdAt'],
+      relations: ['role', 'department'],
+      select: ['id', 'email', 'firstName', 'lastName', 'status', 'isEmailVerified', 'createdAt'],
     });
 
     if (!user) {

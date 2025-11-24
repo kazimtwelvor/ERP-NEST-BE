@@ -58,10 +58,6 @@ export class User {
   @Column({ nullable: true, name: 'postal_code' })
   postalCode: string;
 
-  @ApiPropertyOptional({ description: 'User country', example: 'USA' })
-  @Column({ nullable: true })
-  country: string;
-
   @ApiPropertyOptional({
     description: 'User status',
     enum: ['active', 'inactive', 'suspended'],
@@ -92,6 +88,18 @@ export class User {
   @ApiPropertyOptional({ description: 'Email verification status', default: false })
   @Column({ default: false, name: 'is_email_verified' })
   isEmailVerified: boolean;
+
+  @ApiPropertyOptional({ description: 'Email verification code', example: '123456' })
+  @Column({ type: 'varchar', default: '', name: 'verification_code' })
+  verificationCode: string;
+
+  @ApiPropertyOptional({ description: 'Password reset token' })
+  @Column({ type: 'varchar', nullable: true, name: 'reset_token' })
+  resetToken: string | null;
+
+  @ApiPropertyOptional({ description: 'Password reset token expiry' })
+  @Column({ type: 'timestamp', nullable: true, name: 'reset_token_expiry' })
+  resetTokenExpiry: Date | null;
 
   @ApiProperty({ description: 'Account creation timestamp' })
   @CreateDateColumn({ name: 'created_at' })

@@ -33,18 +33,31 @@ export class LoginDto {
 }
 
 export class ForgotPasswordDto {
-  @ApiProperty()
-  @IsEmail()
+  @ApiProperty({
+    description: 'User email address',
+    example: 'user@example.com',
+  })
+  @IsEmail({}, { message: 'Please provide a valid email address' })
+  @IsNotEmpty({ message: 'Email is required' })
   email: string;
 }
 
 export class ResetPasswordDto {
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Password reset token received via email',
+    example: 'a1b2c3d4e5f6...',
+  })
   @IsString()
+  @IsNotEmpty()
   token: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'New password',
+    example: 'NewSecurePass123!',
+    minLength: 8,
+  })
   @IsString()
-  @MinLength(6)
+  @IsNotEmpty()
+  @MinLength(8, { message: 'Password must be at least 8 characters long' })
   newPassword: string;
 }

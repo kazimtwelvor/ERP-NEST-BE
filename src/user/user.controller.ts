@@ -8,6 +8,7 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -15,11 +16,15 @@ import {
   ApiResponse,
   ApiParam,
   ApiBearerAuth,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { VerifyEmailDto, ResendVerificationDto } from './dto/verify-email.dto';
+import { GetUsersDto } from './dto/get-users.dto';
 import { User } from './entities/user.entity';
+import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -38,24 +43,45 @@ export class UserController {
   @ApiResponse({
     status: 409,
     description: 'User with this email already exists',
+    schema: {
+      type: 'object',
+      properties: {
+        statusCode: { type: 'number', example: 409 },
+        message: { type: 'string', example: 'User with this email already exists' },
+        error: { type: 'string', example: 'Conflict' },
+      },
+    },
   })
   @ApiResponse({
     status: 400,
     description: 'Validation error',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Role or Department not found',
   })
   async create(@Body() createUserDto: CreateUserDto) {
     return this.userService.create(createUserDto);
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all users' })
+  @ApiOperation({ summary: 'Get all users with pagination and search' })
   @ApiResponse({
     status: 200,
     description: 'List of users retrieved successfully',
-    type: [User],
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        data: { type: 'array', items: { $ref: '#/components/schemas/User' } },
+        page: { type: 'number' },
+        total: { type: 'number' },
+        lastPage: { type: 'number' },
+      },
+    },
   })
-  async findAll() {
-    return this.userService.findAll();
+  async findAll(@Query() getUsersDto: GetUsersDto): Promise<PaginatedResponse<User>> {
+    return this.userService.findAll(getUsersDto);
   }
 
   @Get(':id')
@@ -108,5 +134,43 @@ export class UserController {
   })
   async remove(@Param('id') id: string) {
     return this.userService.remove(id);
+  }
+
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify user email with verification code' })
+  @ApiResponse({
+    status: 200,
+    description: 'Email verified successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid verification code or email already verified',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
+    return this.userService.verifyEmail(verifyEmailDto);
+  }
+
+  @Post('resend-verification')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Resend verification code to user email' })
+  @ApiResponse({
+    status: 200,
+    description: 'Verification code sent successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Email is already verified',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  async resendVerificationCode(@Body() resendDto: ResendVerificationDto) {
+    return this.userService.resendVerificationCode(resendDto);
   }
 }

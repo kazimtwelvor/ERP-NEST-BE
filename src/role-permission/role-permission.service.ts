@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, Brackets } from 'typeorm';
 import { Role } from './entities/role.entity';
 import { Permission } from './entities/permission.entity';
 import { CreateRoleDto } from './dto/create-role.dto';
@@ -13,7 +13,11 @@ import { UpdateRoleDto } from './dto/update-role.dto';
 import { CreatePermissionDto } from './dto/create-permission.dto';
 import { UpdatePermissionDto } from './dto/update-permission.dto';
 import { AssignPermissionsDto } from './dto/assign-permissions.dto';
+import { GetRolesDto } from './dto/get-roles.dto';
+import { GetPermissionsDto } from './dto/get-permissions.dto';
 import { ROLE_PERMISSION_MESSAGES } from './messages/role-permission.messages';
+import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
+import { SortEnum } from '../common/dto/pagination.dto';
 
 @Injectable()
 export class RolePermissionService {
@@ -58,15 +62,63 @@ export class RolePermissionService {
     };
   }
 
-  async findAllRoles(): Promise<{ roles: Role[]; message: string }> {
-    const roles = await this.roleRepository.find({
-      relations: ['permissions'],
-      order: { createdAt: 'DESC' },
-    });
+  async findAllRoles(getRolesDto: GetRolesDto): Promise<PaginatedResponse<Role>> {
+    const {
+      query,
+      page = 1,
+      limit = 10,
+      status,
+      isSystem,
+      sort = SortEnum.DESC,
+    } = getRolesDto;
+
+    const qb = this.roleRepository
+      .createQueryBuilder('role')
+      .leftJoinAndSelect('role.permissions', 'permissions');
+
+    // Search query
+    if (query) {
+      qb.andWhere(
+        new Brackets((qb) => {
+          qb.where('LOWER(role.name) LIKE LOWER(:query)', {
+            query: `%${query}%`,
+          })
+            .orWhere('LOWER(role.displayName) LIKE LOWER(:query)', {
+              query: `%${query}%`,
+            })
+            .orWhere('LOWER(role.description) LIKE LOWER(:query)', {
+              query: `%${query}%`,
+            });
+        }),
+      );
+    }
+
+    // Filters
+    if (status) {
+      qb.andWhere('role.status = :status', { status });
+    }
+
+    if (isSystem !== undefined) {
+      qb.andWhere('role.is_system = :isSystem', {
+        isSystem: isSystem === 'true',
+      });
+    }
+
+    // Sorting
+    qb.orderBy('role.createdAt', sort);
+
+    // Pagination
+    qb.skip((page - 1) * limit).take(limit);
+
+    const [roles, total] = await qb.getManyAndCount();
+    const lastPage = Math.ceil(total / limit);
 
     return {
-      roles,
       message: ROLE_PERMISSION_MESSAGES.ROLES_FETCHED,
+      data: roles,
+      page,
+      total,
+      lastPage,
     };
   }
 
@@ -97,6 +149,15 @@ export class RolePermissionService {
     id: string,
     updateRoleDto: UpdateRoleDto,
   ): Promise<{ role: Role; message: string }> {
+    if (!id || id === 'undefined' || id === 'null' || id.trim() === '') {
+      throw new BadRequestException('Invalid role ID');
+    }
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      throw new BadRequestException('Invalid role ID format. Must be a valid UUID.');
+    }
+
     const role = await this.roleRepository.findOne({
       where: { id },
       relations: ['permissions'],
@@ -123,7 +184,8 @@ export class RolePermissionService {
       role.permissions = permissions;
     }
 
-    Object.assign(role, updateRoleDto);
+    const { permissionIds, ...updateData } = updateRoleDto;
+    Object.assign(role, updateData);
     const updatedRole = await this.roleRepository.save(role);
     const roleWithPermissions = await this.roleRepository.findOne({
       where: { id: updatedRole.id },
@@ -140,6 +202,16 @@ export class RolePermissionService {
     id: string,
     assignPermissionsDto: AssignPermissionsDto,
   ): Promise<{ role: Role; message: string }> {
+    if (!id || id === 'undefined' || id === 'null' || id.trim() === '') {
+      throw new BadRequestException('Invalid role ID');
+    }
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      throw new BadRequestException('Invalid role ID format. Must be a valid UUID.');
+    }
+
     const role = await this.roleRepository.findOne({
       where: { id },
       relations: ['permissions'],
@@ -172,6 +244,15 @@ export class RolePermissionService {
   }
 
   async removeRole(id: string): Promise<{ message: string }> {
+    if (!id || id === 'undefined' || id === 'null' || id.trim() === '') {
+      throw new BadRequestException('Invalid role ID');
+    }
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      throw new BadRequestException('Invalid role ID format. Must be a valid UUID.');
+    }
+
     const role = await this.roleRepository.findOne({
       where: { id },
       relations: ['users'],
@@ -217,14 +298,64 @@ export class RolePermissionService {
     };
   }
 
-  async findAllPermissions(): Promise<{ permissions: Permission[]; message: string }> {
-    const permissions = await this.permissionRepository.find({
-      order: { module: 'ASC', action: 'ASC' },
-    });
+  async findAllPermissions(
+    getPermissionsDto: GetPermissionsDto,
+  ): Promise<PaginatedResponse<Permission>> {
+    const {
+      query,
+      page = 1,
+      limit = 10,
+      module,
+      action,
+      sort = SortEnum.DESC,
+    } = getPermissionsDto;
+
+    const qb = this.permissionRepository.createQueryBuilder('permission');
+
+    // Search query
+    if (query) {
+      qb.andWhere(
+        new Brackets((qb) => {
+          qb.where('LOWER(permission.name) LIKE LOWER(:query)', {
+            query: `%${query}%`,
+          })
+            .orWhere('LOWER(permission.displayName) LIKE LOWER(:query)', {
+              query: `%${query}%`,
+            })
+            .orWhere('LOWER(permission.description) LIKE LOWER(:query)', {
+              query: `%${query}%`,
+            })
+            .orWhere('LOWER(permission.module) LIKE LOWER(:query)', {
+              query: `%${query}%`,
+            });
+        }),
+      );
+    }
+
+    // Filters
+    if (module) {
+      qb.andWhere('permission.module = :module', { module });
+    }
+
+    if (action) {
+      qb.andWhere('permission.action = :action', { action });
+    }
+
+    // Sorting
+    qb.orderBy('permission.createdAt', sort);
+
+    // Pagination
+    qb.skip((page - 1) * limit).take(limit);
+
+    const [permissions, total] = await qb.getManyAndCount();
+    const lastPage = Math.ceil(total / limit);
 
     return {
-      permissions,
       message: ROLE_PERMISSION_MESSAGES.PERMISSIONS_FETCHED,
+      data: permissions,
+      page,
+      total,
+      lastPage,
     };
   }
 

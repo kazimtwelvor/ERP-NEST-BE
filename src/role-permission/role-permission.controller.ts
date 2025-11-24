@@ -9,6 +9,7 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -23,8 +24,11 @@ import { UpdateRoleDto } from './dto/update-role.dto';
 import { CreatePermissionDto } from './dto/create-permission.dto';
 import { UpdatePermissionDto } from './dto/update-permission.dto';
 import { AssignPermissionsDto } from './dto/assign-permissions.dto';
+import { GetRolesDto } from './dto/get-roles.dto';
+import { GetPermissionsDto } from './dto/get-permissions.dto';
 import { Role } from './entities/role.entity';
 import { Permission } from './entities/permission.entity';
+import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
 
 @ApiTags('Roles & Permissions')
 @ApiBearerAuth()
@@ -48,14 +52,25 @@ export class RolePermissionController {
   }
 
   @Get('roles')
-  @ApiOperation({ summary: 'Get all roles' })
+  @ApiOperation({ summary: 'Get all roles with pagination and search' })
   @ApiResponse({
     status: 200,
     description: 'List of roles retrieved successfully',
-    type: [Role],
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        data: { type: 'array', items: { $ref: '#/components/schemas/Role' } },
+        page: { type: 'number' },
+        total: { type: 'number' },
+        lastPage: { type: 'number' },
+      },
+    },
   })
-  async findAllRoles() {
-    return this.rolePermissionService.findAllRoles();
+  async findAllRoles(
+    @Query() getRolesDto: GetRolesDto,
+  ): Promise<PaginatedResponse<Role>> {
+    return this.rolePermissionService.findAllRoles(getRolesDto);
   }
 
   @Get('roles/:id')
@@ -128,14 +143,28 @@ export class RolePermissionController {
   }
 
   @Get('permissions')
-  @ApiOperation({ summary: 'Get all permissions' })
+  @ApiOperation({ summary: 'Get all permissions with pagination and search' })
   @ApiResponse({
     status: 200,
     description: 'List of permissions retrieved successfully',
-    type: [Permission],
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        data: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/Permission' },
+        },
+        page: { type: 'number' },
+        total: { type: 'number' },
+        lastPage: { type: 'number' },
+      },
+    },
   })
-  async findAllPermissions() {
-    return this.rolePermissionService.findAllPermissions();
+  async findAllPermissions(
+    @Query() getPermissionsDto: GetPermissionsDto,
+  ): Promise<PaginatedResponse<Permission>> {
+    return this.rolePermissionService.findAllPermissions(getPermissionsDto);
   }
 
   @Get('permissions/:id')
