@@ -149,6 +149,15 @@ export class RolePermissionService {
     id: string,
     updateRoleDto: UpdateRoleDto,
   ): Promise<{ role: Role; message: string }> {
+    if (!id || id === 'undefined' || id === 'null' || id.trim() === '') {
+      throw new BadRequestException('Invalid role ID');
+    }
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      throw new BadRequestException('Invalid role ID format. Must be a valid UUID.');
+    }
+
     const role = await this.roleRepository.findOne({
       where: { id },
       relations: ['permissions'],
@@ -175,7 +184,8 @@ export class RolePermissionService {
       role.permissions = permissions;
     }
 
-    Object.assign(role, updateRoleDto);
+    const { permissionIds, ...updateData } = updateRoleDto;
+    Object.assign(role, updateData);
     const updatedRole = await this.roleRepository.save(role);
     const roleWithPermissions = await this.roleRepository.findOne({
       where: { id: updatedRole.id },
@@ -192,6 +202,16 @@ export class RolePermissionService {
     id: string,
     assignPermissionsDto: AssignPermissionsDto,
   ): Promise<{ role: Role; message: string }> {
+    if (!id || id === 'undefined' || id === 'null' || id.trim() === '') {
+      throw new BadRequestException('Invalid role ID');
+    }
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      throw new BadRequestException('Invalid role ID format. Must be a valid UUID.');
+    }
+
     const role = await this.roleRepository.findOne({
       where: { id },
       relations: ['permissions'],
@@ -224,6 +244,15 @@ export class RolePermissionService {
   }
 
   async removeRole(id: string): Promise<{ message: string }> {
+    if (!id || id === 'undefined' || id === 'null' || id.trim() === '') {
+      throw new BadRequestException('Invalid role ID');
+    }
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      throw new BadRequestException('Invalid role ID format. Must be a valid UUID.');
+    }
+
     const role = await this.roleRepository.findOne({
       where: { id },
       relations: ['users'],
