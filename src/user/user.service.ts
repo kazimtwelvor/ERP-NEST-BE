@@ -103,7 +103,7 @@ export class UserService {
     const {
       query,
       page = 1,
-      limit = 10,
+      limit,
       roleId,
       departmentId,
       status,
@@ -175,11 +175,13 @@ export class UserService {
     // Sorting
     qb.orderBy('user.createdAt', sort);
 
-    // Pagination
-    qb.skip((page - 1) * limit).take(limit);
+    // Pagination - only apply if limit is provided
+    if (limit) {
+      qb.skip((page - 1) * limit).take(limit);
+    }
 
     const [users, total] = await qb.getManyAndCount();
-    const lastPage = Math.ceil(total / limit);
+    const lastPage = limit ? Math.ceil(total / limit) : 1;
 
     return {
       message: USER_MESSAGES.LIST_FETCHED,

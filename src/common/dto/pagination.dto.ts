@@ -19,8 +19,8 @@ export class PaginationDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @ApiPropertyOptional({ description: 'Limit of data per page', example: 10, default: 10 })
-  limit?: number = 10;
+  @ApiPropertyOptional({ description: 'Limit of data per page. If not provided, returns all data.', example: 10 })
+  limit?: number;
 }
 
 export class PaginationQueryDto extends PaginationDto {
