@@ -105,8 +105,7 @@ export class EmailService {
     }
 
     const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
-    const apiUrl = this.configService.get<string>('API_URL', 'http://localhost:3000/api');
-    const verificationLink = `${apiUrl}/auth/verify-email?email=${encodeURIComponent(email)}&code=${verificationCode}`;
+    const verificationLink = `${frontendUrl}/auth/verify-email?email=${encodeURIComponent(email)}&code=${verificationCode}`;
 
     const htmlTemplate = this.getVerificationEmailTemplate(
       firstName,
