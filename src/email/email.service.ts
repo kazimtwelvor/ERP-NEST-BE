@@ -28,6 +28,9 @@ export class EmailService {
           user: emailUser,
           pass: emailPassword,
         },
+        tls: {
+          rejectUnauthorized: false,
+        },
       });
       
       // Test the connection

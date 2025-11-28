@@ -66,7 +66,7 @@ export class RolePermissionService {
     const {
       query,
       page = 1,
-      limit = 10,
+      limit,
       status,
       isSystem,
       sort = SortEnum.DESC,
@@ -107,11 +107,13 @@ export class RolePermissionService {
     // Sorting
     qb.orderBy('role.createdAt', sort);
 
-    // Pagination
-    qb.skip((page - 1) * limit).take(limit);
+    // Pagination - only apply if limit is provided
+    if (limit) {
+      qb.skip((page - 1) * limit).take(limit);
+    }
 
     const [roles, total] = await qb.getManyAndCount();
-    const lastPage = Math.ceil(total / limit);
+    const lastPage = limit ? Math.ceil(total / limit) : 1;
 
     return {
       message: ROLE_PERMISSION_MESSAGES.ROLES_FETCHED,
@@ -304,7 +306,7 @@ export class RolePermissionService {
     const {
       query,
       page = 1,
-      limit = 10,
+      limit,
       module,
       action,
       sort = SortEnum.DESC,
@@ -344,11 +346,13 @@ export class RolePermissionService {
     // Sorting
     qb.orderBy('permission.createdAt', sort);
 
-    // Pagination
-    qb.skip((page - 1) * limit).take(limit);
+    // Pagination - only apply if limit is provided
+    if (limit) {
+      qb.skip((page - 1) * limit).take(limit);
+    }
 
     const [permissions, total] = await qb.getManyAndCount();
-    const lastPage = Math.ceil(total / limit);
+    const lastPage = limit ? Math.ceil(total / limit) : 1;
 
     return {
       message: ROLE_PERMISSION_MESSAGES.PERMISSIONS_FETCHED,

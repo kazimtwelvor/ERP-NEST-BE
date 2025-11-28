@@ -75,7 +75,7 @@ export class DepartmentService {
     const {
       query,
       page = 1,
-      limit = 10,
+      limit,
       status,
       managerId,
       sort = SortEnum.DESC,
@@ -115,11 +115,13 @@ export class DepartmentService {
     // Sorting
     qb.orderBy('department.createdAt', sort);
 
-    // Pagination
-    qb.skip((page - 1) * limit).take(limit);
+    // Pagination - only apply if limit is provided
+    if (limit) {
+      qb.skip((page - 1) * limit).take(limit);
+    }
 
     const [departments, total] = await qb.getManyAndCount();
-    const lastPage = Math.ceil(total / limit);
+    const lastPage = limit ? Math.ceil(total / limit) : 1;
 
     return {
       message: DEPARTMENT_MESSAGES.LIST_FETCHED,
