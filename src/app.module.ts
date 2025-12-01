@@ -11,6 +11,7 @@ import { getDatabaseConfig } from './db/db-config';
 import { DepartmentModule } from './department/department.module';
 import configuration from './config/configuration';
 import { AuthModule } from './auth/auth.module';
+import { OrderTrackingModule } from './order-tracking/order-tracking.module';
 
 
 
@@ -37,6 +38,7 @@ import { AuthModule } from './auth/auth.module';
     RolePermissionModule,
     DepartmentModule,
     AuthModule,
+    OrderTrackingModule,
   ],
   controllers: [AppController],
   providers: [AppService],
