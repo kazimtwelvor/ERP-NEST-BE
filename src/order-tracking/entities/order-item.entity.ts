@@ -29,16 +29,24 @@ export class OrderItem {
   storeName: string;
 
   @ApiProperty({ description: 'Product name', example: 'Leather Jacket' })
-  @Column({ name: 'product_name', nullable: true })
-  productName: string;
+  @Column({ name: 'product_name', type: 'varchar', nullable: true })
+  productName: string | null;
 
   @ApiProperty({ description: 'Product SKU', example: 'LJ-001' })
-  @Column({ nullable: true })
-  sku: string;
+  @Column({ type: 'varchar', nullable: true })
+  sku: string | null;
 
   @ApiProperty({ description: 'Quantity', example: 2 })
   @Column({ type: 'int' })
   quantity: number;
+
+  @ApiProperty({ description: 'Is leather product', example: true, default: false })
+  @Column({ name: 'is_leather', type: 'boolean', default: false })
+  isLeather: boolean;
+
+  @ApiProperty({ description: 'Is pattern product', example: false, default: false })
+  @Column({ name: 'is_pattern', type: 'boolean', default: false })
+  isPattern: boolean;
 
   @ApiProperty({ description: 'QR code data for scanning', example: 'ORDER_ITEM_UUID_HASH' })
   @Column({ name: 'qr_code', unique: true, nullable: true })
@@ -93,6 +101,18 @@ export class OrderItem {
     name: 'preparation_type'
   })
   preparationType: string | null;
+
+  @ApiProperty({ 
+    description: 'Visibility status - JSON object with roleIds and roleNames',
+    example: { roleIds: ['uuid-1', 'uuid-2'], roleNames: ['cutting-manager', 'production-manager'] },
+    nullable: true
+  })
+  @Column({
+    type: 'jsonb',
+    nullable: true,
+    name: 'visibility_status'
+  })
+  visibilityStatus: { roleIds: string[]; roleNames: string[] } | null;
 
   @ApiProperty({ description: 'Order item creation timestamp' })
   @CreateDateColumn({ name: 'created_at' })

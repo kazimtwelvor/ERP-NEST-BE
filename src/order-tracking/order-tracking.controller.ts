@@ -21,7 +21,9 @@ import { CheckInOrderItemDto } from './dto/check-in-order-item.dto';
 import { CheckOutOrderItemDto } from './dto/check-out-order-item.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { GetTrackingHistoryDto } from './dto/get-tracking-history.dto';
+import { GetOrderItemsDto } from './dto/get-order-items.dto';
 import { SyncOrdersDto } from './dto/sync-orders.dto';
+import { CustomSyncOrderItemsDto } from './dto/custom-sync-order-items.dto';
 import { ReturnToStageDto } from './dto/return-to-stage.dto';
 import { OrderItem } from './entities/order-item.entity';
 import { OrderItemTracking } from './entities/order-item-tracking.entity';
@@ -48,6 +50,29 @@ export class OrderTrackingController {
     return this.orderTrackingService.syncOrders(syncOrdersDto);
   }
 
+  @Post('custom-sync-order')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Custom sync individual or multiple order items directly to database' })
+  @ApiResponse({
+    status: 200,
+    description: 'Order items synced successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Order items synced successfully' },
+        synced: { type: 'number', example: 5 },
+        updated: { type: 'number', example: 2 },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation error',
+  })
+  async customSyncOrderItems(@Body() customSyncDto: CustomSyncOrderItemsDto) {
+    return this.orderTrackingService.customSyncOrderItems(customSyncDto);
+  }
+
   @Post('generate-qr/:orderItemId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Generate QR code for an order item' })
@@ -65,8 +90,12 @@ export class OrderTrackingController {
   }
 
   @Get('order-item/qr/:qrCode')
-  @ApiOperation({ summary: 'Get order item by QR code' })
+  @ApiOperation({ summary: 'Get order item by QR code with optional visibility filtering' })
   @ApiParam({ name: 'qrCode', description: 'QR code of the order item' })
+  @ApiQuery({ name: 'roleId', required: false, description: 'Role ID for visibility check' })
+  @ApiQuery({ name: 'roleName', required: false, description: 'Role name for visibility check' })
+  @ApiQuery({ name: 'roleIds', required: false, description: 'Array of role IDs for visibility check', type: [String] })
+  @ApiQuery({ name: 'roleNames', required: false, description: 'Array of role names for visibility check', type: [String] })
   @ApiResponse({
     status: 200,
     description: 'Order item retrieved successfully',
@@ -74,10 +103,16 @@ export class OrderTrackingController {
   })
   @ApiResponse({
     status: 404,
-    description: 'QR code not found',
+    description: 'QR code not found or access denied',
   })
-  async getOrderItemByQRCode(@Param('qrCode') qrCode: string) {
-    return this.orderTrackingService.getOrderItemByQRCode(qrCode);
+  async getOrderItemByQRCode(
+    @Param('qrCode') qrCode: string,
+    @Query('roleId') roleId?: string,
+    @Query('roleName') roleName?: string,
+    @Query('roleIds') roleIds?: string[],
+    @Query('roleNames') roleNames?: string[],
+  ) {
+    return this.orderTrackingService.getOrderItemByQRCode(qrCode, roleId, roleName, roleIds, roleNames);
   }
 
   @Post('check-in')
@@ -176,8 +211,33 @@ export class OrderTrackingController {
     return this.orderTrackingService.returnToStage(returnToStageDto);
   }
 
+  @Get('order-items')
+  @ApiOperation({ summary: 'Get all order items with optional filtering and visibility checks' })
+  @ApiResponse({
+    status: 200,
+    description: 'Order items retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        data: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/OrderItem' },
+        },
+        page: { type: 'number' },
+        total: { type: 'number' },
+        lastPage: { type: 'number' },
+      },
+    },
+  })
+  async getOrderItems(
+    @Query() getOrderItemsDto: GetOrderItemsDto,
+  ): Promise<PaginatedResponse<OrderItem>> {
+    return this.orderTrackingService.getOrderItems(getOrderItemsDto);
+  }
+
   @Get('tracking-history')
-  @ApiOperation({ summary: 'Get tracking history for order items' })
+  @ApiOperation({ summary: 'Get tracking history for order items with optional visibility filtering' })
   @ApiResponse({
     status: 200,
     description: 'Tracking history retrieved successfully',

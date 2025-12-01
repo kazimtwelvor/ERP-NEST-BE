@@ -10,22 +10,22 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
-export class GetTrackingHistoryDto {
+export class GetOrderItemsDto {
   @ApiPropertyOptional({
-    description: 'Order item ID (UUID)',
-    example: '123e4567-e89b-12d3-a456-426614174000',
-  })
-  @IsUUID('4', { message: 'Order item ID must be a valid UUID' })
-  @IsOptional()
-  orderItemId?: string;
-
-  @ApiPropertyOptional({
-    description: 'QR code of the order item',
-    example: 'ORDER_ITEM_UUID_HASH',
+    description: 'Store name to filter by',
+    example: 'fineyst-jackets',
   })
   @IsString()
   @IsOptional()
-  qrCode?: string;
+  storeName?: string;
+
+  @ApiPropertyOptional({
+    description: 'Current status to filter by',
+    example: 'pending',
+  })
+  @IsString()
+  @IsOptional()
+  status?: string;
 
   @ApiPropertyOptional({
     description: 'Department ID to filter by',

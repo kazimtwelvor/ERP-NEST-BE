@@ -5,7 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindOptionsWhere } from 'typeorm';
+import { Repository, FindOptionsWhere, In } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
@@ -13,12 +13,15 @@ import { OrderItem } from './entities/order-item.entity';
 import { OrderItemTracking } from './entities/order-item-tracking.entity';
 import { Department } from '../department/entities/department.entity';
 import { User } from '../user/entities/user.entity';
+import { Role } from '../role-permission/entities/role.entity';
 import { CheckInOrderItemDto } from './dto/check-in-order-item.dto';
 import { CheckOutOrderItemDto } from './dto/check-out-order-item.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { GetTrackingHistoryDto } from './dto/get-tracking-history.dto';
+import { GetOrderItemsDto } from './dto/get-order-items.dto';
 import { SyncOrdersDto, StoreName } from './dto/sync-orders.dto';
 import { ReturnToStageDto } from './dto/return-to-stage.dto';
+import { CustomSyncOrderItemsDto } from './dto/custom-sync-order-items.dto';
 import { ORDER_TRACKING_MESSAGES } from './messages/order-tracking.messages';
 import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
 import { DepartmentStatus, StatusTransitions } from './enums/department-status.enum';
@@ -34,6 +37,8 @@ export class OrderTrackingService {
     private readonly departmentRepository: Repository<Department>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Role)
+    private readonly roleRepository: Repository<Role>,
     private readonly configService: ConfigService,
   ) {}
 
@@ -445,7 +450,7 @@ export class OrderTrackingService {
   }
 
   /**
-   * Get tracking history for order items
+   * Get tracking history for order items with visibility filtering
    */
   async getTrackingHistory(
     getHistoryDto: GetTrackingHistoryDto,
@@ -480,29 +485,66 @@ export class OrderTrackingService {
       where.departmentId = getHistoryDto.departmentId;
     }
 
-    const [data, total] = await this.trackingRepository.findAndCount({
+    // If visibility filtering is needed, fetch more items to account for filtering
+    const fetchLimit = 
+      getHistoryDto.roleId || getHistoryDto.roleName || getHistoryDto.roleIds || getHistoryDto.roleNames
+        ? limit * 5 // Fetch 5x more if filtering by visibility
+        : limit;
+
+    const [allData, total] = await this.trackingRepository.findAndCount({
       where,
       relations: ['orderItem', 'department', 'user'],
       order: { createdAt: 'DESC' },
-      skip,
-      take: limit,
+      skip: 0, // Start from beginning when filtering
+      take: fetchLimit,
     });
 
-    const lastPage = Math.ceil(total / limit);
+    // Filter by visibility if role filters are provided
+    let filteredData = allData;
+    if (
+      getHistoryDto.roleId ||
+      getHistoryDto.roleName ||
+      getHistoryDto.roleIds ||
+      getHistoryDto.roleNames
+    ) {
+      filteredData = allData.filter((tracking) => {
+        if (!tracking.orderItem) {
+          return false;
+        }
+        return this.isItemVisible(
+          tracking.orderItem,
+          getHistoryDto.roleId,
+          getHistoryDto.roleName,
+          getHistoryDto.roleIds,
+          getHistoryDto.roleNames,
+        );
+      });
+    }
+
+    // Apply pagination after filtering
+    const paginatedData = filteredData.slice(skip, skip + limit);
+    const filteredTotal = filteredData.length;
+    const lastPage = Math.ceil(filteredTotal / limit);
 
     return {
       message: ORDER_TRACKING_MESSAGES.TRACKING_HISTORY_FETCHED,
-      data,
+      data: paginatedData,
       page,
-      total,
+      total: filteredTotal,
       lastPage,
     };
   }
 
   /**
-   * Get order item by QR code
+   * Get order item by QR code with optional visibility filtering
    */
-  async getOrderItemByQRCode(qrCode: string): Promise<OrderItem> {
+  async getOrderItemByQRCode(
+    qrCode: string,
+    roleId?: string,
+    roleName?: string,
+    roleIds?: string[],
+    roleNames?: string[],
+  ): Promise<OrderItem> {
     const orderItem = await this.orderItemRepository.findOne({
       where: { qrCode },
       relations: ['trackingHistory'],
@@ -510,6 +552,15 @@ export class OrderTrackingService {
 
     if (!orderItem) {
       throw new NotFoundException(ORDER_TRACKING_MESSAGES.QR_CODE_NOT_FOUND);
+    }
+
+    // Check visibility if role filters are provided
+    if (roleId || roleName || roleIds || roleNames) {
+      if (!this.isItemVisible(orderItem, roleId, roleName, roleIds, roleNames)) {
+        throw new NotFoundException(
+          'Order item not found or access denied',
+        );
+      }
     }
 
     return orderItem;
@@ -575,6 +626,8 @@ export class OrderTrackingService {
             existingItem.productName = item.productName || item.product?.name || null;
             existingItem.sku = item.sku || item.product?.sku || null;
             existingItem.quantity = item.quantity || 1;
+            existingItem.isLeather = item.isLeather || item.product?.isLeather || false;
+            existingItem.isPattern = item.isPattern || item.product?.isPattern || false;
             await this.orderItemRepository.save(existingItem);
           } else {
             // Create new order item
@@ -585,6 +638,8 @@ export class OrderTrackingService {
               productName: item.productName || item.product?.name || null,
               sku: item.sku || item.product?.sku || null,
               quantity: item.quantity || 1,
+              isLeather: item.isLeather || item.product?.isLeather || false,
+              isPattern: item.isPattern || item.product?.isPattern || false,
               currentStatus: 'pending',
             });
 
@@ -608,6 +663,244 @@ export class OrderTrackingService {
         `Failed to sync orders from ${storeName}: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
     }
+  }
+
+  /**
+   * Validate visibility status - check if roleIds and roleNames exist
+   */
+  private async validateVisibilityStatus(
+    visibilityStatus: { roleIds: string[]; roleNames: string[] },
+  ): Promise<void> {
+    // Validate role IDs
+    if (visibilityStatus.roleIds && visibilityStatus.roleIds.length > 0) {
+      const roles = await this.roleRepository.findBy({
+        id: In(visibilityStatus.roleIds),
+      });
+      if (roles.length !== visibilityStatus.roleIds.length) {
+        const foundIds = roles.map((r) => r.id);
+        const missingIds = visibilityStatus.roleIds.filter(
+          (id) => !foundIds.includes(id),
+        );
+        throw new BadRequestException(
+          `Invalid role IDs: ${missingIds.join(', ')}`,
+        );
+      }
+    }
+
+    // Validate role names
+    if (visibilityStatus.roleNames && visibilityStatus.roleNames.length > 0) {
+      const roles = await this.roleRepository.findBy({
+        name: In(visibilityStatus.roleNames),
+      });
+      if (roles.length !== visibilityStatus.roleNames.length) {
+        const foundNames = roles.map((r) => r.name);
+        const missingNames = visibilityStatus.roleNames.filter(
+          (name) => !foundNames.includes(name),
+        );
+        throw new BadRequestException(
+          `Invalid role names: ${missingNames.join(', ')}`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Check if order item is visible to the provided role(s)
+   */
+  private isItemVisible(
+    orderItem: OrderItem,
+    roleId?: string,
+    roleName?: string,
+    roleIds?: string[],
+    roleNames?: string[],
+  ): boolean {
+    // If no visibility status is set, item is visible to all
+    if (!orderItem.visibilityStatus) {
+      return true;
+    }
+
+    const visibility = orderItem.visibilityStatus;
+
+    // Check single role ID
+    if (roleId && visibility.roleIds?.includes(roleId)) {
+      return true;
+    }
+
+    // Check single role name
+    if (roleName && visibility.roleNames?.includes(roleName)) {
+      return true;
+    }
+
+    // Check multiple role IDs
+    if (roleIds && roleIds.length > 0) {
+      const hasMatchingRoleId = roleIds.some((id) =>
+        visibility.roleIds?.includes(id),
+      );
+      if (hasMatchingRoleId) {
+        return true;
+      }
+    }
+
+    // Check multiple role names
+    if (roleNames && roleNames.length > 0) {
+      const hasMatchingRoleName = roleNames.some((name) =>
+        visibility.roleNames?.includes(name),
+      );
+      if (hasMatchingRoleName) {
+        return true;
+      }
+    }
+
+    // No match found
+    return false;
+  }
+
+  /**
+   * Custom sync order items - allows syncing individual or multiple order items directly
+   */
+  async customSyncOrderItems(
+    customSyncDto: CustomSyncOrderItemsDto,
+  ): Promise<{ message: string; synced: number; updated: number }> {
+    // Validate visibility status if provided
+    if (customSyncDto.visibilityStatus) {
+      await this.validateVisibilityStatus(customSyncDto.visibilityStatus);
+    }
+
+    let syncedCount = 0;
+    let updatedCount = 0;
+
+    // Process each order item
+    for (const itemData of customSyncDto.orderItems) {
+      // Check if order item already exists
+      const existingItem = await this.orderItemRepository.findOne({
+        where: {
+          externalOrderId: itemData.externalOrderId,
+          externalItemId: itemData.externalItemId,
+        },
+      });
+
+      if (existingItem) {
+        // Update existing item
+        if (itemData.productName !== undefined) {
+          existingItem.productName = itemData.productName || null;
+        }
+        if (itemData.sku !== undefined) {
+          existingItem.sku = itemData.sku || null;
+        }
+        existingItem.quantity = itemData.quantity || 1;
+        existingItem.isLeather = itemData.isLeather ?? false;
+        existingItem.isPattern = itemData.isPattern ?? false;
+        
+        // Update visibility status if provided
+        if (customSyncDto.visibilityStatus) {
+          existingItem.visibilityStatus = customSyncDto.visibilityStatus;
+        }
+        
+        await this.orderItemRepository.save(existingItem);
+        updatedCount++;
+      } else {
+        // Create new order item
+        const orderItemData: Partial<OrderItem> = {
+          externalOrderId: itemData.externalOrderId,
+          externalItemId: itemData.externalItemId,
+          storeName: customSyncDto.storeName,
+          productName: itemData.productName ?? null,
+          sku: itemData.sku ?? null,
+          quantity: itemData.quantity || 1,
+          isLeather: itemData.isLeather ?? false,
+          isPattern: itemData.isPattern ?? false,
+          visibilityStatus: customSyncDto.visibilityStatus || null,
+          currentStatus: 'pending',
+        };
+        const orderItem = this.orderItemRepository.create(orderItemData);
+
+        // Save first to get the generated ID
+        await this.orderItemRepository.save(orderItem);
+
+        // Generate QR code for new item
+        const hash = crypto.randomBytes(16).toString('hex');
+        orderItem.qrCode = `ORDER_ITEM_${orderItem.id}_${hash}`;
+        await this.orderItemRepository.save(orderItem);
+
+        syncedCount++;
+      }
+    }
+
+    return {
+      message: 'Order items synced successfully',
+      synced: syncedCount,
+      updated: updatedCount,
+    };
+  }
+
+  /**
+   * Get all order items with optional filtering and visibility checks
+   */
+  async getOrderItems(
+    getOrderItemsDto: GetOrderItemsDto,
+  ): Promise<PaginatedResponse<OrderItem>> {
+    const page = getOrderItemsDto.page || 1;
+    const limit = getOrderItemsDto.limit || 10;
+    const skip = (page - 1) * limit;
+
+    const where: FindOptionsWhere<OrderItem> = {};
+
+    if (getOrderItemsDto.storeName) {
+      where.storeName = getOrderItemsDto.storeName;
+    }
+
+    if (getOrderItemsDto.status) {
+      where.currentStatus = getOrderItemsDto.status;
+    }
+
+    if (getOrderItemsDto.departmentId) {
+      where.currentDepartmentId = getOrderItemsDto.departmentId;
+    }
+
+    // If visibility filtering is needed, fetch more items to account for filtering
+    const fetchLimit = 
+      getOrderItemsDto.roleId || getOrderItemsDto.roleName || getOrderItemsDto.roleIds || getOrderItemsDto.roleNames
+        ? limit * 5 // Fetch 5x more if filtering by visibility
+        : limit;
+
+    const [allData, total] = await this.orderItemRepository.findAndCount({
+      where,
+      order: { createdAt: 'DESC' },
+      skip: 0, // Start from beginning when filtering
+      take: fetchLimit,
+    });
+
+    // Filter by visibility if role filters are provided
+    let filteredData = allData;
+    if (
+      getOrderItemsDto.roleId ||
+      getOrderItemsDto.roleName ||
+      getOrderItemsDto.roleIds ||
+      getOrderItemsDto.roleNames
+    ) {
+      filteredData = allData.filter((item) =>
+        this.isItemVisible(
+          item,
+          getOrderItemsDto.roleId,
+          getOrderItemsDto.roleName,
+          getOrderItemsDto.roleIds,
+          getOrderItemsDto.roleNames,
+        ),
+      );
+    }
+
+    // Apply pagination after filtering
+    const paginatedData = filteredData.slice(skip, skip + limit);
+    const filteredTotal = filteredData.length;
+    const lastPage = Math.ceil(filteredTotal / limit);
+
+    return {
+      message: 'Order items retrieved successfully',
+      data: paginatedData,
+      page,
+      total: filteredTotal,
+      lastPage,
+    };
   }
 }
 
