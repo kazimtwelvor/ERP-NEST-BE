@@ -15,5 +15,6 @@ export const ORDER_TRACKING_MESSAGES = {
   INVALID_STATUS_TRANSITION: 'Invalid status transition',
   TRACKING_HISTORY_FETCHED: 'Tracking history fetched successfully',
   ORDER_ITEM_FETCHED: 'Order item fetched successfully',
+  ORDER_ITEM_DELETED: 'Order item deleted successfully',
 } as const;
 
