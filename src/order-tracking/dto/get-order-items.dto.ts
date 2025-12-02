@@ -8,7 +8,7 @@ import {
   IsArray,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 export class GetOrderItemsDto {
   @ApiPropertyOptional({
@@ -56,6 +56,20 @@ export class GetOrderItemsDto {
     example: ['uuid-1', 'uuid-2'],
     type: [String],
   })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [parsed];
+      } catch {
+        return [value];
+      }
+    }
+    return value;
+  })
   @IsArray({ message: 'Role IDs must be an array' })
   @IsUUID('4', { each: true, message: 'Each role ID must be a valid UUID' })
   @IsOptional()
@@ -65,6 +79,22 @@ export class GetOrderItemsDto {
     description: 'Array of role names to filter by visibility',
     example: ['cutting-manager', 'production-manager'],
     type: [String],
+  })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      try {
+        // Try to parse as JSON (handles ["name"] format)
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [parsed];
+      } catch {
+        // If not JSON, treat as single value
+        return [value];
+      }
+    }
+    return value;
   })
   @IsArray({ message: 'Role names must be an array' })
   @IsString({ each: true, message: 'Each role name must be a string' })
@@ -95,4 +125,5 @@ export class GetOrderItemsDto {
   @IsOptional()
   limit?: number = 10;
 }
+
 
