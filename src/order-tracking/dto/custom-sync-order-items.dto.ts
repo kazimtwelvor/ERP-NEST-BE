@@ -70,6 +70,14 @@ export class OrderItemDataDto {
   @IsBoolean()
   @IsOptional()
   isPattern?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Current department-specific status',
+    example: 'cutting_in_progress',
+  })
+  @IsString()
+  @IsOptional()
+  currentDepartmentStatus?: string;
 }
 
 export class VisibilityStatusDto {

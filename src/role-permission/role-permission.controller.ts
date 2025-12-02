@@ -29,10 +29,10 @@ import { Permission } from './entities/permission.entity';
 @ApiBearerAuth()
 @Controller('role-permission')
 export class RolePermissionController {
+  
   constructor(private readonly rolePermissionService: RolePermissionService) {}
 
-  // ========== Role Endpoints ==========
-
+ 
   @Post('roles')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new role' })

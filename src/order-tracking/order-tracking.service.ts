@@ -791,6 +791,10 @@ export class OrderTrackingService {
         existingItem.isLeather = itemData.isLeather ?? false;
         existingItem.isPattern = itemData.isPattern ?? false;
         
+        if (itemData.currentDepartmentStatus !== undefined) {
+          existingItem.currentDepartmentStatus = itemData.currentDepartmentStatus || null;
+        }
+        
         // Update visibility status if provided
         if (customSyncDto.visibilityStatus) {
           existingItem.visibilityStatus = customSyncDto.visibilityStatus;
@@ -809,6 +813,7 @@ export class OrderTrackingService {
           quantity: itemData.quantity || 1,
           isLeather: itemData.isLeather ?? false,
           isPattern: itemData.isPattern ?? false,
+          currentDepartmentStatus: itemData.currentDepartmentStatus || null,
           visibilityStatus: customSyncDto.visibilityStatus || null,
           currentStatus: 'pending',
         };
