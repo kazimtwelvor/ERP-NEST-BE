@@ -902,5 +902,26 @@ export class OrderTrackingService {
       lastPage,
     };
   }
+
+  /**
+   * Delete an order item by ID
+   * This will also delete all associated tracking history due to CASCADE relationship
+   */
+  async deleteOrderItem(orderItemId: string): Promise<{ message: string }> {
+    const orderItem = await this.orderItemRepository.findOne({
+      where: { id: orderItemId },
+    });
+
+    if (!orderItem) {
+      throw new NotFoundException(ORDER_TRACKING_MESSAGES.ORDER_ITEM_NOT_FOUND);
+    }
+
+    // Delete the order item - tracking history will be automatically deleted due to CASCADE
+    await this.orderItemRepository.remove(orderItem);
+
+    return {
+      message: ORDER_TRACKING_MESSAGES.ORDER_ITEM_DELETED,
+    };
+  }
 }
 

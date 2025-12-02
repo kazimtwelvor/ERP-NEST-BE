@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Body,
   Param,
   Query,
@@ -259,6 +260,28 @@ export class OrderTrackingController {
     @Query() getHistoryDto: GetTrackingHistoryDto,
   ): Promise<PaginatedResponse<OrderItemTracking>> {
     return this.orderTrackingService.getTrackingHistory(getHistoryDto);
+  }
+
+  @Delete('order-item/:orderItemId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete an order item by ID' })
+  @ApiParam({ name: 'orderItemId', description: 'Order item ID (UUID)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Order item deleted successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Order item deleted successfully' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Order item not found',
+  })
+  async deleteOrderItem(@Param('orderItemId') orderItemId: string) {
+    return this.orderTrackingService.deleteOrderItem(orderItemId);
   }
 }
 
