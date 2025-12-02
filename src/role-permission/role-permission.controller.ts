@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -22,8 +23,11 @@ import { UpdateRoleDto } from './dto/update-role.dto';
 import { CreatePermissionDto } from './dto/create-permission.dto';
 import { UpdatePermissionDto } from './dto/update-permission.dto';
 import { AssignPermissionsDto } from './dto/assign-permissions.dto';
+import { GetRolesDto } from './dto/get-roles.dto';
+import { GetPermissionsDto } from './dto/get-permissions.dto';
 import { Role } from './entities/role.entity';
 import { Permission } from './entities/permission.entity';
+import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
 
 @ApiTags('Roles & Permissions')
 @ApiBearerAuth()
@@ -53,8 +57,8 @@ export class RolePermissionController {
     description: 'List of roles retrieved successfully',
     type: [Role],
   })
-  async findAllRoles() {
-    return this.rolePermissionService.findAllRoles();
+  async findAllRoles(@Query() getRolesDto: GetRolesDto) {
+    return this.rolePermissionService.findAllRoles(getRolesDto);
   }
 
   @Get('roles/:id')
@@ -133,8 +137,8 @@ export class RolePermissionController {
     description: 'List of permissions retrieved successfully',
     type: [Permission],
   })
-  async findAllPermissions() {
-    return this.rolePermissionService.findAllPermissions();
+  async findAllPermissions(@Query() getPermissionsDto: GetPermissionsDto) {
+    return this.rolePermissionService.findAllPermissions(getPermissionsDto);
   }
 
   @Get('permissions/:id')
