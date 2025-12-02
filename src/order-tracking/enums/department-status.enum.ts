@@ -145,3 +145,4 @@ export const StatusTransitions: Record<DepartmentStatus, DepartmentStatus[]> = {
   [DepartmentStatus.DELIVERED]: [], // End state
 };
 
+
