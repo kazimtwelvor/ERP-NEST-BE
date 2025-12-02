@@ -591,3 +591,4 @@ When quality control fails, the item can be returned to any previous production 
 ✅ **Complete Audit Trail** - Every status change is recorded  
 ✅ **Department History** - Track last department and handover chain
 
+
