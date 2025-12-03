@@ -7,13 +7,16 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere, In } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
+import { Inject, forwardRef } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { OrderItem } from './entities/order-item.entity';
 import { OrderItemTracking } from './entities/order-item-tracking.entity';
 import { Department } from '../department/entities/department.entity';
+import { DepartmentStatus as DepartmentStatusEntity } from '../department/entities/department-status.entity';
 import { User } from '../user/entities/user.entity';
 import { Role } from '../role-permission/entities/role.entity';
+import { DepartmentService } from '../department/department.service';
 import { CheckInOrderItemDto } from './dto/check-in-order-item.dto';
 import { CheckOutOrderItemDto } from './dto/check-out-order-item.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
@@ -35,10 +38,14 @@ export class OrderTrackingService {
     private readonly trackingRepository: Repository<OrderItemTracking>,
     @InjectRepository(Department)
     private readonly departmentRepository: Repository<Department>,
+    @InjectRepository(DepartmentStatusEntity)
+    private readonly departmentStatusRepository: Repository<DepartmentStatusEntity>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(Role)
     private readonly roleRepository: Repository<Role>,
+    @Inject(forwardRef(() => DepartmentService))
+    private readonly departmentService: DepartmentService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -73,6 +80,7 @@ export class OrderTrackingService {
   private async verifyUserPassword(userId: string, password: string): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
+      relations: ['department'],
     });
 
     if (!user) {
@@ -85,6 +93,40 @@ export class OrderTrackingService {
     }
 
     return user;
+  }
+
+  /**
+   * Validate that a department status is valid for the user's department
+   */
+  private async validateDepartmentStatusForUser(
+    user: User,
+    departmentId: string,
+    departmentStatus: string,
+  ): Promise<void> {
+    // If user has no department, they can't update department-specific statuses
+    if (!user.department) {
+      throw new BadRequestException('User must be assigned to a department to update department statuses');
+    }
+
+    // Verify the department matches user's department
+    if (user.department.id !== departmentId) {
+      throw new BadRequestException(
+        `User can only update statuses for their assigned department. User department: ${user.department.name}, Requested department: ${departmentId}`,
+      );
+    }
+
+    // Check if the status is valid for this department
+    const isValid = await this.departmentService.isStatusValidForDepartment(
+      departmentId,
+      departmentStatus,
+    );
+
+    if (!isValid) {
+      const availableStatuses = await this.departmentService.getAvailableStatusesForDepartment(departmentId);
+      throw new BadRequestException(
+        `Status '${departmentStatus}' is not valid for department '${user.department.name}'. Available statuses: ${availableStatuses.join(', ')}`,
+      );
+    }
   }
 
   /**
@@ -136,6 +178,15 @@ export class OrderTrackingService {
     }
     
     // If status is 'pending', allow check-in (first time)
+
+    // Validate department status if provided
+    if (checkInDto.departmentStatus) {
+      await this.validateDepartmentStatusForUser(
+        user,
+        checkInDto.departmentId,
+        checkInDto.departmentStatus,
+      );
+    }
 
     // Create tracking record
     const previousStatus = orderItem.currentStatus;
@@ -315,6 +366,13 @@ export class OrderTrackingService {
     }
 
     if (updateStatusDto.departmentStatus) {
+      // Validate that the status is valid for the user's department
+      await this.validateDepartmentStatusForUser(
+        user,
+        updateStatusDto.departmentId,
+        updateStatusDto.departmentStatus,
+      );
+
       const currentDeptStatus = orderItem.currentDepartmentStatus as DepartmentStatus;
       if (currentDeptStatus) {
         const validNextStatuses = StatusTransitions[currentDeptStatus] || [];
@@ -397,6 +455,13 @@ export class OrderTrackingService {
     if (!department) {
       throw new NotFoundException(ORDER_TRACKING_MESSAGES.DEPARTMENT_NOT_FOUND);
     }
+
+    // Validate that return status is valid for the user's department
+    await this.validateDepartmentStatusForUser(
+      user,
+      returnToStageDto.departmentId,
+      returnToStageDto.returnToStatus,
+    );
 
     // Validate that return status is valid (can return to any previous stage)
     const validReturnStatuses = [

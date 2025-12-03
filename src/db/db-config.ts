@@ -4,6 +4,7 @@ import { User } from '../user/entities/user.entity';
 import { Role } from '../role-permission/entities/role.entity';
 import { Permission } from '../role-permission/entities/permission.entity';
 import { Department } from '../department/entities/department.entity';
+import { DepartmentStatus } from '../department/entities/department-status.entity';
 import { OrderItem } from '../order-tracking/entities/order-item.entity';
 import { OrderItemTracking } from '../order-tracking/entities/order-item-tracking.entity';
 
@@ -28,7 +29,7 @@ export const getDatabaseConfig = (
     username: configService.get<string>('DB_USERNAME', 'postgres'),
     password: configService.get<string>('DB_PASSWORD', 'postgres'),
     database: configService.get<string>('DB_DATABASE', 'erp_database'),
-    entities: [User, Role, Permission, Department, OrderItem, OrderItemTracking],
+    entities: [User, Role, Permission, Department, DepartmentStatus, OrderItem, OrderItemTracking],
     synchronize:
       dbSynchronize !== undefined
         ? dbSynchronize === 'true'
