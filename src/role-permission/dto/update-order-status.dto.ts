@@ -8,9 +8,8 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { DepartmentStatus } from '../../order-tracking/enums/department-status.enum';
 
-export class UpdateDepartmentStatusDto {
+export class UpdateOrderStatusDto {
   @ApiPropertyOptional({
     description: 'Display order for sorting',
     minimum: 0,
@@ -28,4 +27,5 @@ export class UpdateDepartmentStatusDto {
   @IsBoolean()
   isActive?: boolean;
 }
+
 

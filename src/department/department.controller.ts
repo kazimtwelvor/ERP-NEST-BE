@@ -21,10 +21,7 @@ import { DepartmentService } from './department.service';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
 import { GetDepartmentsDto } from './dto/get-departments.dto';
-import { AssignDepartmentStatusesDto } from './dto/assign-department-statuses.dto';
-import { UpdateDepartmentStatusDto } from './dto/update-department-status.dto';
 import { Department } from './entities/department.entity';
-import { DepartmentStatus } from './entities/department-status.entity';
 import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
 
 @ApiTags('Departments')
@@ -134,92 +131,4 @@ export class DepartmentController {
     return this.departmentService.remove(id);
   }
 
-  // ========== Department Status Management Endpoints ==========
-
-  @Post(':id/statuses')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Assign statuses to a department' })
-  @ApiParam({ name: 'id', description: 'Department ID (UUID)' })
-  @ApiResponse({
-    status: 200,
-    description: 'Department statuses assigned successfully',
-    type: Department,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Department not found',
-  })
-  async assignStatuses(
-    @Param('id') id: string,
-    @Body() assignStatusesDto: AssignDepartmentStatusesDto,
-  ) {
-    return this.departmentService.assignStatuses(id, assignStatusesDto);
-  }
-
-  @Get(':id/statuses')
-  @ApiOperation({ summary: 'Get all statuses for a department' })
-  @ApiParam({ name: 'id', description: 'Department ID (UUID)' })
-  @ApiResponse({
-    status: 200,
-    description: 'Department statuses retrieved successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        message: { type: 'string' },
-        statuses: {
-          type: 'array',
-          items: { $ref: '#/components/schemas/DepartmentStatus' },
-        },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Department not found',
-  })
-  async getDepartmentStatuses(@Param('id') id: string) {
-    return this.departmentService.getDepartmentStatuses(id);
-  }
-
-  @Patch(':id/statuses/:status')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Update a specific department status' })
-  @ApiParam({ name: 'id', description: 'Department ID (UUID)' })
-  @ApiParam({ name: 'status', description: 'Status value' })
-  @ApiResponse({
-    status: 200,
-    description: 'Department status updated successfully',
-    type: DepartmentStatus,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Department or status not found',
-  })
-  async updateDepartmentStatus(
-    @Param('id') id: string,
-    @Param('status') status: string,
-    @Body() updateDto: UpdateDepartmentStatusDto,
-  ) {
-    return this.departmentService.updateDepartmentStatus(id, status, updateDto);
-  }
-
-  @Delete(':id/statuses/:status')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Remove a status from a department' })
-  @ApiParam({ name: 'id', description: 'Department ID (UUID)' })
-  @ApiParam({ name: 'status', description: 'Status value' })
-  @ApiResponse({
-    status: 200,
-    description: 'Department status removed successfully',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Department or status not found',
-  })
-  async removeDepartmentStatus(
-    @Param('id') id: string,
-    @Param('status') status: string,
-  ) {
-    return this.departmentService.removeDepartmentStatus(id, status);
-  }
 }

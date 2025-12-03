@@ -9,10 +9,7 @@ import { Repository, Brackets } from 'typeorm';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
 import { GetDepartmentsDto } from './dto/get-departments.dto';
-import { AssignDepartmentStatusesDto } from './dto/assign-department-statuses.dto';
-import { UpdateDepartmentStatusDto } from './dto/update-department-status.dto';
 import { Department } from './entities/department.entity';
-import { DepartmentStatus } from './entities/department-status.entity';
 import { User } from '../user/entities/user.entity';
 import { DEPARTMENT_MESSAGES } from './messages/department.messages';
 import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
@@ -23,8 +20,6 @@ export class DepartmentService {
   constructor(
     @InjectRepository(Department)
     private readonly departmentRepository: Repository<Department>,
-    @InjectRepository(DepartmentStatus)
-    private readonly departmentStatusRepository: Repository<DepartmentStatus>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {}
@@ -65,13 +60,8 @@ export class DepartmentService {
     const savedDepartment = await this.departmentRepository.save(department);
     const departmentWithManager = await this.departmentRepository.findOne({
       where: { id: savedDepartment.id },
-      relations: ['manager', 'statuses'],
+      relations: ['manager'],
     });
-
-    // Sort statuses by displayOrder if they exist
-    if (departmentWithManager?.statuses) {
-      departmentWithManager.statuses.sort((a, b) => a.displayOrder - b.displayOrder);
-    }
 
     return {
       department: departmentWithManager!,
@@ -94,10 +84,7 @@ export class DepartmentService {
     const qb = this.departmentRepository
       .createQueryBuilder('department')
       .leftJoinAndSelect('department.manager', 'manager')
-      .leftJoinAndSelect('department.users', 'users')
-      .leftJoinAndSelect('department.statuses', 'statuses')
-      .addOrderBy('statuses.displayOrder', 'ASC')
-      .addOrderBy('statuses.createdAt', 'ASC');
+      .leftJoinAndSelect('department.users', 'users');
 
     // Search query
     if (query) {
@@ -134,14 +121,6 @@ export class DepartmentService {
     }
 
     const [departments, total] = await qb.getManyAndCount();
-    
-    // Sort statuses by displayOrder for each department
-    departments.forEach((department) => {
-      if (department.statuses) {
-        department.statuses.sort((a, b) => a.displayOrder - b.displayOrder);
-      }
-    });
-
     const lastPage = limit ? Math.ceil(total / limit) : 1;
 
     return {
@@ -156,16 +135,11 @@ export class DepartmentService {
   async findOne(id: string): Promise<{ department: Department; message: string }> {
     const department = await this.departmentRepository.findOne({
       where: { id },
-      relations: ['users', 'manager', 'statuses'],
+      relations: ['users', 'manager'],
     });
 
     if (!department) {
       throw new NotFoundException(DEPARTMENT_MESSAGES.NOT_FOUND);
-    }
-
-    // Sort statuses by displayOrder if they exist
-    if (department.statuses) {
-      department.statuses.sort((a, b) => a.displayOrder - b.displayOrder);
     }
 
     return {
@@ -175,17 +149,10 @@ export class DepartmentService {
   }
 
   async findByCode(code: string): Promise<Department | null> {
-    const department = await this.departmentRepository.findOne({
+    return await this.departmentRepository.findOne({
       where: { code },
-      relations: ['users', 'manager', 'statuses'],
+      relations: ['users', 'manager'],
     });
-
-    // Sort statuses by displayOrder if they exist
-    if (department?.statuses) {
-      department.statuses.sort((a, b) => a.displayOrder - b.displayOrder);
-    }
-
-    return department;
   }
 
   async update(
@@ -237,13 +204,8 @@ export class DepartmentService {
     const updatedDepartment = await this.departmentRepository.save(department);
     const departmentWithUsers = await this.departmentRepository.findOne({
       where: { id: updatedDepartment.id },
-      relations: ['users', 'manager', 'statuses'],
+      relations: ['users', 'manager'],
     });
-
-    // Sort statuses by displayOrder if they exist
-    if (departmentWithUsers?.statuses) {
-      departmentWithUsers.statuses.sort((a, b) => a.displayOrder - b.displayOrder);
-    }
 
     return {
       department: departmentWithUsers!,
@@ -270,162 +232,5 @@ export class DepartmentService {
     return {
       message: DEPARTMENT_MESSAGES.DELETED,
     };
-  }
-
-  // ========== Department Status Management ==========
-
-  /**
-   * Assign statuses to a department
-   */
-  async assignStatuses(
-    departmentId: string,
-    assignStatusesDto: AssignDepartmentStatusesDto,
-  ): Promise<{ department: Department; message: string }> {
-    const department = await this.departmentRepository.findOne({
-      where: { id: departmentId },
-      relations: ['statuses'],
-    });
-
-    if (!department) {
-      throw new NotFoundException(DEPARTMENT_MESSAGES.NOT_FOUND);
-    }
-
-    // Remove existing statuses
-    if (department.statuses && department.statuses.length > 0) {
-      await this.departmentStatusRepository.remove(department.statuses);
-    }
-
-    // Create new statuses
-    const statuses = assignStatusesDto.statuses.map((statusDto) =>
-      this.departmentStatusRepository.create({
-        departmentId,
-        status: statusDto.status,
-        displayOrder: statusDto.displayOrder ?? 0,
-        isActive: statusDto.isActive ?? true,
-      }),
-    );
-
-    await this.departmentStatusRepository.save(statuses);
-
-    // Return department with updated statuses
-    const updatedDepartment = await this.departmentRepository.findOne({
-      where: { id: departmentId },
-      relations: ['statuses', 'manager'],
-    });
-
-    // Sort statuses by displayOrder if they exist
-    if (updatedDepartment?.statuses) {
-      updatedDepartment.statuses.sort((a, b) => a.displayOrder - b.displayOrder);
-    }
-
-    return {
-      department: updatedDepartment!,
-      message: 'Department statuses assigned successfully',
-    };
-  }
-
-  /**
-   * Get all statuses for a department
-   */
-  async getDepartmentStatuses(departmentId: string): Promise<{
-    statuses: DepartmentStatus[];
-    message: string;
-  }> {
-    const department = await this.departmentRepository.findOne({
-      where: { id: departmentId },
-    });
-
-    if (!department) {
-      throw new NotFoundException(DEPARTMENT_MESSAGES.NOT_FOUND);
-    }
-
-    const statuses = await this.departmentStatusRepository.find({
-      where: { departmentId },
-      order: { displayOrder: 'ASC', createdAt: 'ASC' },
-    });
-
-    return {
-      statuses,
-      message: 'Department statuses retrieved successfully',
-    };
-  }
-
-  /**
-   * Update a specific department status
-   */
-  async updateDepartmentStatus(
-    departmentId: string,
-    status: string,
-    updateDto: UpdateDepartmentStatusDto,
-  ): Promise<{ status: DepartmentStatus; message: string }> {
-    const departmentStatus = await this.departmentStatusRepository.findOne({
-      where: { departmentId, status },
-    });
-
-    if (!departmentStatus) {
-      throw new NotFoundException('Department status not found');
-    }
-
-    if (updateDto.displayOrder !== undefined) {
-      departmentStatus.displayOrder = updateDto.displayOrder;
-    }
-    if (updateDto.isActive !== undefined) {
-      departmentStatus.isActive = updateDto.isActive;
-    }
-
-    const updated = await this.departmentStatusRepository.save(departmentStatus);
-
-    return {
-      status: updated,
-      message: 'Department status updated successfully',
-    };
-  }
-
-  /**
-   * Remove a status from a department
-   */
-  async removeDepartmentStatus(
-    departmentId: string,
-    status: string,
-  ): Promise<{ message: string }> {
-    const departmentStatus = await this.departmentStatusRepository.findOne({
-      where: { departmentId, status },
-    });
-
-    if (!departmentStatus) {
-      throw new NotFoundException('Department status not found');
-    }
-
-    await this.departmentStatusRepository.remove(departmentStatus);
-
-    return {
-      message: 'Department status removed successfully',
-    };
-  }
-
-  /**
-   * Get available statuses for a department (for validation)
-   */
-  async getAvailableStatusesForDepartment(departmentId: string): Promise<string[]> {
-    const statuses = await this.departmentStatusRepository.find({
-      where: { departmentId, isActive: true },
-      order: { displayOrder: 'ASC' },
-    });
-
-    return statuses.map((s) => s.status);
-  }
-
-  /**
-   * Check if a status is valid for a department
-   */
-  async isStatusValidForDepartment(
-    departmentId: string,
-    status: string,
-  ): Promise<boolean> {
-    const departmentStatus = await this.departmentStatusRepository.findOne({
-      where: { departmentId, status, isActive: true },
-    });
-
-    return !!departmentStatus;
   }
 }

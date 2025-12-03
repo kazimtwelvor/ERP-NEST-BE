@@ -10,27 +10,27 @@ import {
   Index,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
-import { Department } from './department.entity';
-import { DepartmentStatus as DepartmentStatusEnum } from '../../order-tracking/enums/department-status.enum';
+import { Role } from '../../role-permission/entities/role.entity';
+import { DepartmentStatus as DepartmentStatusEnum } from '../enums/department-status.enum';
 
-@Entity('department_statuses')
-@Unique(['departmentId', 'status'])
-@Index(['departmentId', 'status'])
-export class DepartmentStatus {
-  @ApiProperty({ description: 'Department status unique identifier (UUID)' })
+@Entity('order_statuses')
+@Unique(['roleId', 'status'])
+@Index(['roleId', 'status'])
+export class OrderStatus {
+  @ApiProperty({ description: 'Order status unique identifier (UUID)' })
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @ApiProperty({ 
-    description: 'Department reference',
-    type: () => Department,
+    description: 'Role reference',
+    type: () => Role,
   })
-  @ManyToOne(() => Department, { nullable: false, onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'department_id' })
-  department: Department;
+  @ManyToOne(() => Role, { nullable: false, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'role_id' })
+  role: Role;
 
-  @Column({ name: 'department_id' })
-  departmentId: string;
+  @Column({ name: 'role_id' })
+  roleId: string;
 
   @ApiProperty({
     description: 'Status value from DepartmentStatus enum',
@@ -55,7 +55,7 @@ export class DepartmentStatus {
   displayOrder: number;
 
   @ApiProperty({
-    description: 'Whether this status is active for the department',
+    description: 'Whether this status is active for the role',
     default: true,
   })
   @Column({
@@ -65,7 +65,7 @@ export class DepartmentStatus {
   })
   isActive: boolean;
 
-  @ApiProperty({ description: 'Department status creation timestamp' })
+  @ApiProperty({ description: 'Order status creation timestamp' })
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
@@ -73,4 +73,5 @@ export class DepartmentStatus {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 }
+
 

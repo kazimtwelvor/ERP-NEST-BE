@@ -10,7 +10,6 @@ import {
 } from 'typeorm';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { User } from '../../user/entities/user.entity';
-import { DepartmentStatus } from './department-status.entity';
 
 @Entity('departments')
 export class Department {
@@ -50,14 +49,6 @@ export class Department {
 
   @OneToMany(() => User, (user) => user.department)
   users: User[];
-
-  @ApiPropertyOptional({
-    description: 'Department statuses that can be used for order items',
-    type: () => DepartmentStatus,
-    isArray: true,
-  })
-  @OneToMany(() => DepartmentStatus, (departmentStatus) => departmentStatus.department)
-  statuses: DepartmentStatus[];
 
   @ApiProperty({ description: 'Department creation timestamp' })
   @CreateDateColumn({ name: 'created_at' })

@@ -23,10 +23,13 @@ import { UpdateRoleDto } from './dto/update-role.dto';
 import { CreatePermissionDto } from './dto/create-permission.dto';
 import { UpdatePermissionDto } from './dto/update-permission.dto';
 import { AssignPermissionsDto } from './dto/assign-permissions.dto';
+import { AssignOrderStatusesDto } from './dto/assign-order-statuses.dto';
+import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { GetRolesDto } from './dto/get-roles.dto';
 import { GetPermissionsDto } from './dto/get-permissions.dto';
 import { Role } from './entities/role.entity';
 import { Permission } from './entities/permission.entity';
+import { OrderStatus } from '../order-tracking/entities/order-status.entity';
 import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
 
 @ApiTags('Roles & Permissions')
@@ -179,5 +182,94 @@ export class RolePermissionController {
   @ApiResponse({ status: 400, description: 'Cannot delete permission assigned to roles' })
   async removePermission(@Param('id') id: string) {
     return this.rolePermissionService.removePermission(id);
+  }
+
+  // ========== Order Status Management Endpoints ==========
+
+  @Post('roles/:id/order-statuses')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Assign order statuses to a role' })
+  @ApiParam({ name: 'id', description: 'Role ID (UUID)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Order statuses assigned successfully',
+    type: Role,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Role not found',
+  })
+  async assignOrderStatuses(
+    @Param('id') id: string,
+    @Body() assignStatusesDto: AssignOrderStatusesDto,
+  ) {
+    return this.rolePermissionService.assignOrderStatuses(id, assignStatusesDto);
+  }
+
+  @Get('roles/:id/order-statuses')
+  @ApiOperation({ summary: 'Get all order statuses for a role' })
+  @ApiParam({ name: 'id', description: 'Role ID (UUID)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Order statuses retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        statuses: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/OrderStatus' },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Role not found',
+  })
+  async getRoleOrderStatuses(@Param('id') id: string) {
+    return this.rolePermissionService.getRoleOrderStatuses(id);
+  }
+
+  @Patch('roles/:id/order-statuses/:status')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update a specific order status' })
+  @ApiParam({ name: 'id', description: 'Role ID (UUID)' })
+  @ApiParam({ name: 'status', description: 'Status value' })
+  @ApiResponse({
+    status: 200,
+    description: 'Order status updated successfully',
+    type: OrderStatus,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Role or status not found',
+  })
+  async updateOrderStatus(
+    @Param('id') id: string,
+    @Param('status') status: string,
+    @Body() updateDto: UpdateOrderStatusDto,
+  ) {
+    return this.rolePermissionService.updateOrderStatus(id, status, updateDto);
+  }
+
+  @Delete('roles/:id/order-statuses/:status')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Remove an order status from a role' })
+  @ApiParam({ name: 'id', description: 'Role ID (UUID)' })
+  @ApiParam({ name: 'status', description: 'Status value' })
+  @ApiResponse({
+    status: 200,
+    description: 'Order status removed successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Role or status not found',
+  })
+  async removeOrderStatus(
+    @Param('id') id: string,
+    @Param('status') status: string,
+  ) {
+    return this.rolePermissionService.removeOrderStatus(id, status);
   }
 }

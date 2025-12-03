@@ -12,13 +12,13 @@ import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { DepartmentStatus } from '../../order-tracking/enums/department-status.enum';
 
-export class DepartmentStatusItemDto {
+export class OrderStatusItemDto {
   @ApiProperty({
     description: 'Status value from DepartmentStatus enum',
     enum: DepartmentStatus,
     example: DepartmentStatus.CUTTING_IN_PROGRESS,
   })
-  @IsEnum(DepartmentStatus, { message: 'Invalid department status' })
+  @IsEnum(DepartmentStatus, { message: 'Invalid order status' })
   @IsString()
   status: string;
 
@@ -42,14 +42,15 @@ export class DepartmentStatusItemDto {
   isActive?: boolean = true;
 }
 
-export class AssignDepartmentStatusesDto {
+export class AssignOrderStatusesDto {
   @ApiProperty({
-    description: 'Array of department statuses to assign',
-    type: [DepartmentStatusItemDto],
+    description: 'Array of order statuses to assign',
+    type: [OrderStatusItemDto],
   })
   @IsArray({ message: 'Statuses must be an array' })
   @ValidateNested({ each: true })
-  @Type(() => DepartmentStatusItemDto)
-  statuses: DepartmentStatusItemDto[];
+  @Type(() => OrderStatusItemDto)
+  statuses: OrderStatusItemDto[];
 }
+
 

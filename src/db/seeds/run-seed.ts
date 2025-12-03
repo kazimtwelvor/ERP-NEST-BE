@@ -4,7 +4,7 @@ import { User } from '../../user/entities/user.entity';
 import { Role } from '../../role-permission/entities/role.entity';
 import { Permission } from '../../role-permission/entities/permission.entity';
 import { Department } from '../../department/entities/department.entity';
-import { DepartmentStatus } from '../../department/entities/department-status.entity';
+import { OrderStatus } from '../../order-tracking/entities/order-status.entity';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -37,7 +37,7 @@ async function bootstrap() {
     username: process.env.DB_USERNAME || 'postgres',
     password: process.env.DB_PASSWORD || 'postgres',
     database: process.env.DB_DATABASE || 'erp_database',
-    entities: [User, Role, Permission, Department, DepartmentStatus],
+    entities: [User, Role, Permission, Department, OrderStatus],
     synchronize: false,
     logging: isDevelopment,
   });

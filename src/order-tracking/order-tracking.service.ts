@@ -13,10 +13,10 @@ import * as crypto from 'crypto';
 import { OrderItem } from './entities/order-item.entity';
 import { OrderItemTracking } from './entities/order-item-tracking.entity';
 import { Department } from '../department/entities/department.entity';
-import { DepartmentStatus as DepartmentStatusEntity } from '../department/entities/department-status.entity';
+import { OrderStatus } from './entities/order-status.entity';
 import { User } from '../user/entities/user.entity';
 import { Role } from '../role-permission/entities/role.entity';
-import { DepartmentService } from '../department/department.service';
+import { RolePermissionService } from '../role-permission/role-permission.service';
 import { CheckInOrderItemDto } from './dto/check-in-order-item.dto';
 import { CheckOutOrderItemDto } from './dto/check-out-order-item.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
@@ -38,14 +38,14 @@ export class OrderTrackingService {
     private readonly trackingRepository: Repository<OrderItemTracking>,
     @InjectRepository(Department)
     private readonly departmentRepository: Repository<Department>,
-    @InjectRepository(DepartmentStatusEntity)
-    private readonly departmentStatusRepository: Repository<DepartmentStatusEntity>,
+    @InjectRepository(OrderStatus)
+    private readonly orderStatusRepository: Repository<OrderStatus>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(Role)
     private readonly roleRepository: Repository<Role>,
-    @Inject(forwardRef(() => DepartmentService))
-    private readonly departmentService: DepartmentService,
+    @Inject(forwardRef(() => RolePermissionService))
+    private readonly rolePermissionService: RolePermissionService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -80,7 +80,7 @@ export class OrderTrackingService {
   private async verifyUserPassword(userId: string, password: string): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ['department'],
+      relations: ['role', 'department'],
     });
 
     if (!user) {
@@ -96,35 +96,37 @@ export class OrderTrackingService {
   }
 
   /**
-   * Validate that a department status is valid for the user's department
+   * Validate that an order status is valid for the user's role
    */
-  private async validateDepartmentStatusForUser(
+  private async validateOrderStatusForUser(
     user: User,
     departmentId: string,
-    departmentStatus: string,
+    orderStatus: string,
   ): Promise<void> {
-    // If user has no department, they can't update department-specific statuses
-    if (!user.department) {
-      throw new BadRequestException('User must be assigned to a department to update department statuses');
+    // If user has no role, they can't update order statuses
+    if (!user.role) {
+      throw new BadRequestException('User must have a role assigned to update order statuses');
     }
 
-    // Verify the department matches user's department
-    if (user.department.id !== departmentId) {
-      throw new BadRequestException(
-        `User can only update statuses for their assigned department. User department: ${user.department.name}, Requested department: ${departmentId}`,
-      );
+    // Verify the department exists (still needed for order tracking context)
+    const department = await this.departmentRepository.findOne({
+      where: { id: departmentId },
+    });
+
+    if (!department) {
+      throw new NotFoundException(ORDER_TRACKING_MESSAGES.DEPARTMENT_NOT_FOUND);
     }
 
-    // Check if the status is valid for this department
-    const isValid = await this.departmentService.isStatusValidForDepartment(
-      departmentId,
-      departmentStatus,
+    // Check if the status is valid for this role
+    const isValid = await this.rolePermissionService.isStatusValidForRole(
+      user.role.id,
+      orderStatus,
     );
 
     if (!isValid) {
-      const availableStatuses = await this.departmentService.getAvailableStatusesForDepartment(departmentId);
+      const availableStatuses = await this.rolePermissionService.getAvailableStatusesForRole(user.role.id);
       throw new BadRequestException(
-        `Status '${departmentStatus}' is not valid for department '${user.department.name}'. Available statuses: ${availableStatuses.join(', ')}`,
+        `Status '${orderStatus}' is not valid for role '${user.role.name}'. Available statuses: ${availableStatuses.join(', ')}`,
       );
     }
   }
@@ -179,9 +181,9 @@ export class OrderTrackingService {
     
     // If status is 'pending', allow check-in (first time)
 
-    // Validate department status if provided
+    // Validate order status if provided
     if (checkInDto.departmentStatus) {
-      await this.validateDepartmentStatusForUser(
+      await this.validateOrderStatusForUser(
         user,
         checkInDto.departmentId,
         checkInDto.departmentStatus,
@@ -366,8 +368,8 @@ export class OrderTrackingService {
     }
 
     if (updateStatusDto.departmentStatus) {
-      // Validate that the status is valid for the user's department
-      await this.validateDepartmentStatusForUser(
+      // Validate that the status is valid for the user's role
+      await this.validateOrderStatusForUser(
         user,
         updateStatusDto.departmentId,
         updateStatusDto.departmentStatus,
@@ -456,8 +458,8 @@ export class OrderTrackingService {
       throw new NotFoundException(ORDER_TRACKING_MESSAGES.DEPARTMENT_NOT_FOUND);
     }
 
-    // Validate that return status is valid for the user's department
-    await this.validateDepartmentStatusForUser(
+    // Validate that return status is valid for the user's role
+    await this.validateOrderStatusForUser(
       user,
       returnToStageDto.departmentId,
       returnToStageDto.returnToStatus,
