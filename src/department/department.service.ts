@@ -65,8 +65,13 @@ export class DepartmentService {
     const savedDepartment = await this.departmentRepository.save(department);
     const departmentWithManager = await this.departmentRepository.findOne({
       where: { id: savedDepartment.id },
-      relations: ['manager'],
+      relations: ['manager', 'statuses'],
     });
+
+    // Sort statuses by displayOrder if they exist
+    if (departmentWithManager?.statuses) {
+      departmentWithManager.statuses.sort((a, b) => a.displayOrder - b.displayOrder);
+    }
 
     return {
       department: departmentWithManager!,
@@ -89,7 +94,10 @@ export class DepartmentService {
     const qb = this.departmentRepository
       .createQueryBuilder('department')
       .leftJoinAndSelect('department.manager', 'manager')
-      .leftJoinAndSelect('department.users', 'users');
+      .leftJoinAndSelect('department.users', 'users')
+      .leftJoinAndSelect('department.statuses', 'statuses')
+      .addOrderBy('statuses.displayOrder', 'ASC')
+      .addOrderBy('statuses.createdAt', 'ASC');
 
     // Search query
     if (query) {
@@ -126,6 +134,14 @@ export class DepartmentService {
     }
 
     const [departments, total] = await qb.getManyAndCount();
+    
+    // Sort statuses by displayOrder for each department
+    departments.forEach((department) => {
+      if (department.statuses) {
+        department.statuses.sort((a, b) => a.displayOrder - b.displayOrder);
+      }
+    });
+
     const lastPage = limit ? Math.ceil(total / limit) : 1;
 
     return {
@@ -140,11 +156,16 @@ export class DepartmentService {
   async findOne(id: string): Promise<{ department: Department; message: string }> {
     const department = await this.departmentRepository.findOne({
       where: { id },
-      relations: ['users', 'manager'],
+      relations: ['users', 'manager', 'statuses'],
     });
 
     if (!department) {
       throw new NotFoundException(DEPARTMENT_MESSAGES.NOT_FOUND);
+    }
+
+    // Sort statuses by displayOrder if they exist
+    if (department.statuses) {
+      department.statuses.sort((a, b) => a.displayOrder - b.displayOrder);
     }
 
     return {
@@ -154,10 +175,17 @@ export class DepartmentService {
   }
 
   async findByCode(code: string): Promise<Department | null> {
-    return await this.departmentRepository.findOne({
+    const department = await this.departmentRepository.findOne({
       where: { code },
-      relations: ['users', 'manager'],
+      relations: ['users', 'manager', 'statuses'],
     });
+
+    // Sort statuses by displayOrder if they exist
+    if (department?.statuses) {
+      department.statuses.sort((a, b) => a.displayOrder - b.displayOrder);
+    }
+
+    return department;
   }
 
   async update(
@@ -209,8 +237,13 @@ export class DepartmentService {
     const updatedDepartment = await this.departmentRepository.save(department);
     const departmentWithUsers = await this.departmentRepository.findOne({
       where: { id: updatedDepartment.id },
-      relations: ['users', 'manager'],
+      relations: ['users', 'manager', 'statuses'],
     });
+
+    // Sort statuses by displayOrder if they exist
+    if (departmentWithUsers?.statuses) {
+      departmentWithUsers.statuses.sort((a, b) => a.displayOrder - b.displayOrder);
+    }
 
     return {
       department: departmentWithUsers!,
@@ -279,6 +312,11 @@ export class DepartmentService {
       where: { id: departmentId },
       relations: ['statuses', 'manager'],
     });
+
+    // Sort statuses by displayOrder if they exist
+    if (updatedDepartment?.statuses) {
+      updatedDepartment.statuses.sort((a, b) => a.displayOrder - b.displayOrder);
+    }
 
     return {
       department: updatedDepartment!,
