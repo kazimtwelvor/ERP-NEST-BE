@@ -47,7 +47,15 @@ export const getDatabaseConfig = (
       max: configService.get<number>('DB_MAX_CONNECTIONS', 10),
       connectionTimeoutMillis: configService.get<number>(
         'DB_CONNECTION_TIMEOUT',
-        2000,
+        30000,
+      ),
+      idleTimeoutMillis: configService.get<number>(
+        'DB_IDLE_TIMEOUT',
+        30000,
+      ),
+      query_timeout: configService.get<number>(
+        'DB_QUERY_TIMEOUT',
+        60000,
       ),
     },
   };

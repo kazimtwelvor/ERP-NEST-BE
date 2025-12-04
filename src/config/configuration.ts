@@ -14,7 +14,9 @@ export default () => ({
     sslRejectUnauthorized:
       process.env.DB_SSL_REJECT_UNAUTHORIZED === 'true',
     maxConnections: parseInt(process.env.DB_MAX_CONNECTIONS || '10', 10),
-    connectionTimeout: parseInt(process.env.DB_CONNECTION_TIMEOUT || '2000', 10),
+    connectionTimeout: parseInt(process.env.DB_CONNECTION_TIMEOUT || '30000', 10),
+    idleTimeout: parseInt(process.env.DB_IDLE_TIMEOUT || '30000', 10),
+    queryTimeout: parseInt(process.env.DB_QUERY_TIMEOUT || '60000', 10),
   },
   jwt: {
     secret: process.env.JWT_SECRET || 'your-secret-key',

@@ -272,4 +272,30 @@ export class RolePermissionController {
   ) {
     return this.rolePermissionService.removeOrderStatus(id, status);
   }
+
+  @Get('order-statuses/available')
+  @ApiOperation({ summary: 'Get all available order statuses from enum (for dropdown)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Available order statuses retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        statuses: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              value: { type: 'string', description: 'Status enum value' },
+              label: { type: 'string', description: 'Human-readable label' },
+            },
+          },
+        },
+      },
+    },
+  })
+  async getAvailableOrderStatuses() {
+    return this.rolePermissionService.getAvailableOrderStatuses();
+  }
 }

@@ -21,6 +21,7 @@ import { GetPermissionsDto } from './dto/get-permissions.dto';
 import { ROLE_PERMISSION_MESSAGES } from './messages/role-permission.messages';
 import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
 import { SortEnum } from '../common/dto/pagination.dto';
+import { DepartmentStatus } from '../order-tracking/enums/department-status.enum';
 
 @Injectable()
 export class RolePermissionService {
@@ -56,6 +57,20 @@ export class RolePermissionService {
     }
 
     const savedRole = await this.roleRepository.save(role);
+
+    // Handle order statuses if provided
+    if (createRoleDto.orderStatuses && createRoleDto.orderStatuses.length > 0) {
+      const orderStatuses = createRoleDto.orderStatuses.map((statusDto) =>
+        this.orderStatusRepository.create({
+          roleId: savedRole.id,
+          status: statusDto.status,
+          displayOrder: statusDto.displayOrder ?? 0,
+          isActive: statusDto.isActive ?? true,
+        }),
+      );
+      await this.orderStatusRepository.save(orderStatuses);
+    }
+
     const roleWithPermissions = await this.roleRepository.findOne({
       where: { id: savedRole.id },
       relations: ['permissions', 'orderStatuses'],
@@ -219,7 +234,31 @@ export class RolePermissionService {
       role.permissions = permissions;
     }
 
-    const { permissionIds, ...updateData } = updateRoleDto;
+    // Handle order statuses if provided
+    if (updateRoleDto.orderStatuses !== undefined) {
+      // Remove existing order statuses
+      const existingStatuses = await this.orderStatusRepository.find({
+        where: { roleId: id },
+      });
+      if (existingStatuses.length > 0) {
+        await this.orderStatusRepository.remove(existingStatuses);
+      }
+
+      // Create new order statuses if provided
+      if (updateRoleDto.orderStatuses.length > 0) {
+        const orderStatuses = updateRoleDto.orderStatuses.map((statusDto) =>
+          this.orderStatusRepository.create({
+            roleId: id,
+            status: statusDto.status,
+            displayOrder: statusDto.displayOrder ?? 0,
+            isActive: statusDto.isActive ?? true,
+          }),
+        );
+        await this.orderStatusRepository.save(orderStatuses);
+      }
+    }
+
+    const { permissionIds, orderStatuses, ...updateData } = updateRoleDto;
     Object.assign(role, updateData);
     const updatedRole = await this.roleRepository.save(role);
     const roleWithPermissions = await this.roleRepository.findOne({
@@ -635,5 +674,31 @@ export class RolePermissionService {
     });
 
     return !!orderStatus;
+  }
+
+  /**
+   * Get all available order statuses from enum (for dropdown)
+   */
+  async getAvailableOrderStatuses(): Promise<{
+    statuses: Array<{ value: string; label: string }>;
+    message: string;
+  }> {
+    const statuses = Object.values(DepartmentStatus).map((status) => {
+      // Convert snake_case to Title Case for display
+      const label = status
+        .split('_')
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+
+      return {
+        value: status,
+        label,
+      };
+    });
+
+    return {
+      statuses,
+      message: 'Available order statuses retrieved successfully',
+    };
   }
 }
