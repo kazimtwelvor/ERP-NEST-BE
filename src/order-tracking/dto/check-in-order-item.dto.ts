@@ -52,12 +52,12 @@ export class CheckInOrderItemDto {
   preparationType?: string;
 
   @ApiPropertyOptional({
-    description: 'Initial department-specific status (e.g., cutting_in_progress, leather_availability_pending)',
+    description: 'Initial order status (e.g., cutting_in_progress, leather_availability_pending)',
     example: 'cutting_in_progress',
   })
   @IsString()
   @IsOptional()
-  departmentStatus?: string;
+  orderStatus?: string;
 
   @ApiPropertyOptional({
     description: 'Optional notes for the check-in',

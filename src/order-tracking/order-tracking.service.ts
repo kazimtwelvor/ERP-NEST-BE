@@ -182,17 +182,17 @@ export class OrderTrackingService {
     // If status is 'pending', allow check-in (first time)
 
     // Validate order status if provided
-    if (checkInDto.departmentStatus) {
+    if (checkInDto.orderStatus) {
       await this.validateOrderStatusForUser(
         user,
         checkInDto.departmentId,
-        checkInDto.departmentStatus,
+        checkInDto.orderStatus,
       );
     }
 
     // Create tracking record
     const previousStatus = orderItem.currentStatus;
-    const initialDepartmentStatus = checkInDto.departmentStatus || null;
+    const initialOrderStatus = checkInDto.orderStatus || null;
     
     const tracking = this.trackingRepository.create({
       orderItemId: orderItem.id,
@@ -202,7 +202,7 @@ export class OrderTrackingService {
       status: 'checked-in',
       previousStatus,
       preparationType: checkInDto.preparationType || null,
-      departmentStatus: initialDepartmentStatus,
+      departmentStatus: initialOrderStatus,
       notes: checkInDto.notes,
     });
 
@@ -215,7 +215,7 @@ export class OrderTrackingService {
     orderItem.currentStatus = 'checked-in';
     orderItem.currentDepartmentId = checkInDto.departmentId;
     orderItem.preparationType = checkInDto.preparationType || null;
-    orderItem.currentDepartmentStatus = initialDepartmentStatus;
+    orderItem.orderStatus = initialOrderStatus;
     orderItem.handedOverDepartmentId = null;
     await this.orderItemRepository.save(orderItem);
 
@@ -367,21 +367,21 @@ export class OrderTrackingService {
       }
     }
 
-    if (updateStatusDto.departmentStatus) {
+    if (updateStatusDto.orderStatus) {
       // Validate that the status is valid for the user's role
       await this.validateOrderStatusForUser(
         user,
         updateStatusDto.departmentId,
-        updateStatusDto.departmentStatus,
+        updateStatusDto.orderStatus,
       );
 
-      const currentDeptStatus = orderItem.currentDepartmentStatus as DepartmentStatus;
-      if (currentDeptStatus) {
-        const validNextStatuses = StatusTransitions[currentDeptStatus] || [];
-        const newDeptStatus = updateStatusDto.departmentStatus as DepartmentStatus;
-        if (!validNextStatuses.includes(newDeptStatus)) {
+      const currentOrderStatus = orderItem.orderStatus as DepartmentStatus;
+      if (currentOrderStatus) {
+        const validNextStatuses = StatusTransitions[currentOrderStatus] || [];
+        const newOrderStatus = updateStatusDto.orderStatus as DepartmentStatus;
+        if (!validNextStatuses.includes(newOrderStatus)) {
           throw new BadRequestException(
-            `Invalid department status transition from ${currentDeptStatus} to ${newDeptStatus}. Valid next statuses: ${validNextStatuses.join(', ')}`,
+            `Invalid order status transition from ${currentOrderStatus} to ${newOrderStatus}. Valid next statuses: ${validNextStatuses.join(', ')}`,
           );
         }
       }
@@ -389,7 +389,7 @@ export class OrderTrackingService {
 
     // Create tracking record
     const previousStatus = orderItem.currentStatus;
-    const previousDepartmentStatus = orderItem.currentDepartmentStatus;
+    const previousDepartmentStatus = orderItem.orderStatus;
     const tracking = this.trackingRepository.create({
       orderItemId: orderItem.id,
       departmentId: updateStatusDto.departmentId,
@@ -398,7 +398,7 @@ export class OrderTrackingService {
       status: updateStatusDto.status,
       previousStatus,
       preparationType: updateStatusDto.preparationType || null,
-      departmentStatus: updateStatusDto.departmentStatus || null,
+      departmentStatus: updateStatusDto.orderStatus || null,
       notes: updateStatusDto.notes,
     });
 
@@ -413,9 +413,9 @@ export class OrderTrackingService {
     if (updateStatusDto.preparationType) {
       orderItem.preparationType = updateStatusDto.preparationType;
     }
-    // Update department status if provided
-    if (updateStatusDto.departmentStatus) {
-      orderItem.currentDepartmentStatus = updateStatusDto.departmentStatus;
+    // Update order status if provided
+    if (updateStatusDto.orderStatus) {
+      orderItem.orderStatus = updateStatusDto.orderStatus;
     }
     await this.orderItemRepository.save(orderItem);
 
@@ -482,7 +482,7 @@ export class OrderTrackingService {
 
     // Create tracking record for return
     const previousStatus = orderItem.currentStatus;
-    const previousDepartmentStatus = orderItem.currentDepartmentStatus;
+    const previousDepartmentStatus = orderItem.orderStatus;
     
     const tracking = this.trackingRepository.create({
       orderItemId: orderItem.id,
@@ -499,7 +499,7 @@ export class OrderTrackingService {
 
     // Update order item - return to specified stage
     orderItem.currentStatus = 'in-progress';
-    orderItem.currentDepartmentStatus = returnToStageDto.returnToStatus;
+    orderItem.orderStatus = returnToStageDto.returnToStatus;
     // Note: currentDepartmentId should be set to the department handling the return
     // This might need to be determined based on the return status
     await this.orderItemRepository.save(orderItem);
@@ -858,8 +858,8 @@ export class OrderTrackingService {
         existingItem.isLeather = itemData.isLeather ?? false;
         existingItem.isPattern = itemData.isPattern ?? false;
         
-        if (itemData.currentDepartmentStatus !== undefined) {
-          existingItem.currentDepartmentStatus = itemData.currentDepartmentStatus || null;
+        if (itemData.orderStatus !== undefined) {
+          existingItem.orderStatus = itemData.orderStatus || null;
         }
         
         // Update visibility status if provided
@@ -880,7 +880,7 @@ export class OrderTrackingService {
           quantity: itemData.quantity || 1,
           isLeather: itemData.isLeather ?? false,
           isPattern: itemData.isPattern ?? false,
-          currentDepartmentStatus: itemData.currentDepartmentStatus || null,
+          orderStatus: itemData.orderStatus || null,
           visibilityStatus: customSyncDto.visibilityStatus || null,
           currentStatus: 'pending',
         };

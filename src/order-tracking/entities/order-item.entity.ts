@@ -78,16 +78,16 @@ export class OrderItem {
   currentStatus: string;
 
   @ApiProperty({ 
-    description: 'Current department-specific status',
+    description: 'Order status',
     example: 'cutting_in_progress',
     nullable: true
   })
   @Column({
     type: 'varchar',
     nullable: true,
-    name: 'current_department_status'
+    name: 'order_status'
   })
-  currentDepartmentStatus: string | null;
+  orderStatus: string | null;
 
   @ApiProperty({ 
     description: 'Preparation type (in-house or outsourced)',

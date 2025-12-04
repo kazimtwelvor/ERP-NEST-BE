@@ -76,12 +76,12 @@ export class UpdateStatusDto {
   preparationType?: PreparationType;
 
   @ApiPropertyOptional({
-    description: 'Department-specific status (e.g., cutting_in_progress, cutting_pending_approval)',
+    description: 'Order status (e.g., cutting_in_progress, cutting_pending_approval)',
     example: 'cutting_in_progress',
   })
   @IsString()
   @IsOptional()
-  departmentStatus?: string;
+  orderStatus?: string;
 
   @ApiPropertyOptional({
     description: 'Optional notes for the status update',
