@@ -60,8 +60,8 @@ export class OrderTrackingService {
     // Remove trailing slash if present
     const baseUrl = frontendUrl.replace(/\/$/, '');
     
-    // Generate URL pattern: FE_URL/orders/{store_name}?orderItemId={orderItemId}
-    return `${baseUrl}/orders/${storeName}?orderItemId=${orderItemId}`;
+    // Generate URL pattern: FE_URL/orders/update-status?orderItemId={orderItemId}
+    return `${baseUrl}/orders/update-status?orderItemId=${orderItemId}`;
   }
 
   /**
