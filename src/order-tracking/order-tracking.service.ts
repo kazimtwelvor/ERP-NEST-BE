@@ -337,8 +337,15 @@ export class OrderTrackingService {
   async updateStatus(
     updateStatusDto: UpdateStatusDto,
   ): Promise<{ tracking: OrderItemTracking; message: string }> {
-    // Verify user password
-    const user = await this.verifyUserPassword(updateStatusDto.userId, updateStatusDto.password);
+    // Get user by ID (with relations for department/role if needed)
+    const user = await this.userRepository.findOne({
+      where: { id: updateStatusDto.userId },
+      relations: ['role', 'department'],
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
 
     // Find order item by QR code
     const orderItem = await this.orderItemRepository.findOne({
@@ -369,43 +376,7 @@ export class OrderTrackingService {
       'delivered': [], // Cannot transition from delivered
     };
 
-    const allowedStatuses = validTransitions[orderItem.currentStatus] || [];
-    if (!allowedStatuses.includes(updateStatusDto.status)) {
-      throw new BadRequestException(ORDER_TRACKING_MESSAGES.INVALID_STATUS_TRANSITION);
-    }
-
-    // Verify department context for status updates
-    if (updateStatusDto.status === 'in-progress') {
-      // To set in-progress, item must be checked-in to THIS department
-      if (orderItem.currentStatus !== 'checked-in' && orderItem.currentStatus !== 'in-progress') {
-        throw new BadRequestException('Order item must be checked-in before setting to in-progress');
-      }
-      if (orderItem.currentDepartmentId !== updateStatusDto.departmentId) {
-        throw new BadRequestException(
-          `Order item is not checked in to this department. Current department: ${orderItem.currentDepartmentId || 'none'}`,
-        );
-      }
-    }
-
-    if (updateStatusDto.orderStatus) {
-      // Validate that the status is valid for the user's role
-      await this.validateOrderStatusForUser(
-        user,
-        updateStatusDto.departmentId,
-        updateStatusDto.orderStatus,
-      );
-
-      const currentOrderStatus = orderItem.orderStatus as DepartmentStatus;
-      if (currentOrderStatus) {
-        const validNextStatuses = StatusTransitions[currentOrderStatus] || [];
-        const newOrderStatus = updateStatusDto.orderStatus as DepartmentStatus;
-        if (!validNextStatuses.includes(newOrderStatus)) {
-          throw new BadRequestException(
-            `Invalid order status transition from ${currentOrderStatus} to ${newOrderStatus}. Valid next statuses: ${validNextStatuses.join(', ')}`,
-          );
-        }
-      }
-    }
+    // All strict validations removed - allow any status update
 
     // Create tracking record
     const previousStatus = orderItem.currentStatus;

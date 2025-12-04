@@ -4,7 +4,6 @@ import {
   IsEnum,
   IsUUID,
   IsOptional,
-  MinLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -48,15 +47,6 @@ export class UpdateStatusDto {
   @IsUUID('4', { message: 'Department ID must be a valid UUID' })
   @IsNotEmpty({ message: 'Department ID is required' })
   departmentId: string;
-
-  @ApiProperty({
-    description: 'Password for authentication',
-    example: 'securePassword123',
-  })
-  @IsString()
-  @IsNotEmpty({ message: 'Password is required' })
-  @MinLength(6, { message: 'Password must be at least 6 characters' })
-  password: string;
 
   @ApiProperty({
     description: 'User ID performing the action',
