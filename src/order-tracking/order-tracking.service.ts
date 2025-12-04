@@ -389,7 +389,6 @@ export class OrderTrackingService {
 
     // Create tracking record
     const previousStatus = orderItem.currentStatus;
-    const previousDepartmentStatus = orderItem.orderStatus;
     const tracking = this.trackingRepository.create({
       orderItemId: orderItem.id,
       departmentId: updateStatusDto.departmentId,
@@ -482,7 +481,6 @@ export class OrderTrackingService {
 
     // Create tracking record for return
     const previousStatus = orderItem.currentStatus;
-    const previousDepartmentStatus = orderItem.orderStatus;
     
     const tracking = this.trackingRepository.create({
       orderItemId: orderItem.id,
