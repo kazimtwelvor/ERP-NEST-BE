@@ -2,6 +2,7 @@ import { DataSource } from 'typeorm';
 import { permissionsSeed } from './permissions.seed';
 import { rolesSeed } from './roles.seed';
 import { departmentsSeed } from './departments.seed';
+import { orderStatusesSeed } from './order-statuses.seed';
 import { usersSeed } from './users.seed';
 
 export const runSeeds = async (dataSource: DataSource): Promise<void> => {
@@ -17,6 +18,10 @@ export const runSeeds = async (dataSource: DataSource): Promise<void> => {
     console.log('🏢 Seeding departments...');
     await departmentsSeed(dataSource);
     console.log('✓ Departments seeded successfully\n');
+
+    console.log('📊 Seeding order statuses for roles...');
+    await orderStatusesSeed(dataSource);
+    console.log('✓ Order statuses seeded successfully\n');
 
     console.log('👤 Seeding users...');
     await usersSeed(dataSource);

@@ -52,6 +52,14 @@ export class OrderItem {
   @Column({ name: 'qr_code', unique: true, nullable: true })
   qrCode: string;
 
+  @ApiProperty({ description: 'QR code URL for scanning', example: 'https://example.com/orders/fineyst-jackets?orderItemId=uuid' })
+  @Column({ name: 'qr_code_url', type: 'text', nullable: true })
+  qrCodeUrl: string | null;
+
+  @ApiProperty({ description: 'QR code image data (base64)', nullable: true })
+  @Column({ name: 'qr_code_image', type: 'text', nullable: true })
+  qrCodeImage: string | null;
+
   @ApiProperty({ description: 'Current department ID', nullable: true })
   @Column({ name: 'current_department_id', type: 'uuid', nullable: true })
   currentDepartmentId: string | null;
@@ -78,16 +86,16 @@ export class OrderItem {
   currentStatus: string;
 
   @ApiProperty({ 
-    description: 'Current department-specific status',
+    description: 'Order status',
     example: 'cutting_in_progress',
     nullable: true
   })
   @Column({
     type: 'varchar',
     nullable: true,
-    name: 'current_department_status'
+    name: 'order_status'
   })
-  currentDepartmentStatus: string | null;
+  orderStatus: string | null;
 
   @ApiProperty({ 
     description: 'Preparation type (in-house or outsourced)',

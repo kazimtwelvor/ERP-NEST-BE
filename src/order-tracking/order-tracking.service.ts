@@ -7,13 +7,16 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere, In } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
+import { Inject, forwardRef } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { OrderItem } from './entities/order-item.entity';
 import { OrderItemTracking } from './entities/order-item-tracking.entity';
 import { Department } from '../department/entities/department.entity';
+import { OrderStatus } from './entities/order-status.entity';
 import { User } from '../user/entities/user.entity';
 import { Role } from '../role-permission/entities/role.entity';
+import { RolePermissionService } from '../role-permission/role-permission.service';
 import { CheckInOrderItemDto } from './dto/check-in-order-item.dto';
 import { CheckOutOrderItemDto } from './dto/check-out-order-item.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
@@ -35,17 +38,36 @@ export class OrderTrackingService {
     private readonly trackingRepository: Repository<OrderItemTracking>,
     @InjectRepository(Department)
     private readonly departmentRepository: Repository<Department>,
+    @InjectRepository(OrderStatus)
+    private readonly orderStatusRepository: Repository<OrderStatus>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(Role)
     private readonly roleRepository: Repository<Role>,
+    @Inject(forwardRef(() => RolePermissionService))
+    private readonly rolePermissionService: RolePermissionService,
     private readonly configService: ConfigService,
   ) {}
 
   /**
+   * Generate QR code URL for an order item
+   */
+  private generateQRCodeUrl(orderItemId: string, storeName: string): string {
+    const frontendUrl = this.configService.get<string>('frontendUrl') || 
+                       process.env.FRONTEND_URL || 
+                       'http://localhost:3000';
+    
+    // Remove trailing slash if present
+    const baseUrl = frontendUrl.replace(/\/$/, '');
+    
+    // Generate URL pattern: FE_URL/orders/update-status?orderItemId={orderItemId}
+    return `${baseUrl}/orders/update-status?orderItemId=${orderItemId}`;
+  }
+
+  /**
    * Generate QR code for an order item
    */
-  async generateQRCode(orderItemId: string): Promise<{ qrCode: string; message: string }> {
+  async generateQRCode(orderItemId: string): Promise<{ qrCode: string; qrCodeUrl: string | null; message: string }> {
     const orderItem = await this.orderItemRepository.findOne({
       where: { id: orderItemId },
     });
@@ -58,11 +80,16 @@ export class OrderTrackingService {
     const hash = crypto.randomBytes(16).toString('hex');
     const qrCode = `ORDER_ITEM_${orderItem.id}_${hash}`;
 
+    // Generate QR code URL
+    const qrCodeUrl = this.generateQRCodeUrl(orderItem.id, orderItem.storeName);
+
     orderItem.qrCode = qrCode;
+    orderItem.qrCodeUrl = qrCodeUrl;
     await this.orderItemRepository.save(orderItem);
 
     return {
       qrCode,
+      qrCodeUrl,
       message: ORDER_TRACKING_MESSAGES.QR_CODE_GENERATED,
     };
   }
@@ -73,6 +100,7 @@ export class OrderTrackingService {
   private async verifyUserPassword(userId: string, password: string): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
+      relations: ['role', 'department'],
     });
 
     if (!user) {
@@ -85,6 +113,42 @@ export class OrderTrackingService {
     }
 
     return user;
+  }
+
+  /**
+   * Validate that an order status is valid for the user's role
+   */
+  private async validateOrderStatusForUser(
+    user: User,
+    departmentId: string,
+    orderStatus: string,
+  ): Promise<void> {
+    // If user has no role, they can't update order statuses
+    if (!user.role) {
+      throw new BadRequestException('User must have a role assigned to update order statuses');
+    }
+
+    // Verify the department exists (still needed for order tracking context)
+    const department = await this.departmentRepository.findOne({
+      where: { id: departmentId },
+    });
+
+    if (!department) {
+      throw new NotFoundException(ORDER_TRACKING_MESSAGES.DEPARTMENT_NOT_FOUND);
+    }
+
+    // Check if the status is valid for this role
+    const isValid = await this.rolePermissionService.isStatusValidForRole(
+      user.role.id,
+      orderStatus,
+    );
+
+    if (!isValid) {
+      const availableStatuses = await this.rolePermissionService.getAvailableStatusesForRole(user.role.id);
+      throw new BadRequestException(
+        `Status '${orderStatus}' is not valid for role '${user.role.name}'. Available statuses: ${availableStatuses.join(', ')}`,
+      );
+    }
   }
 
   /**
@@ -137,9 +201,18 @@ export class OrderTrackingService {
     
     // If status is 'pending', allow check-in (first time)
 
+    // Validate order status if provided
+    if (checkInDto.orderStatus) {
+      await this.validateOrderStatusForUser(
+        user,
+        checkInDto.departmentId,
+        checkInDto.orderStatus,
+      );
+    }
+
     // Create tracking record
     const previousStatus = orderItem.currentStatus;
-    const initialDepartmentStatus = checkInDto.departmentStatus || null;
+    const initialOrderStatus = checkInDto.orderStatus || null;
     
     const tracking = this.trackingRepository.create({
       orderItemId: orderItem.id,
@@ -149,7 +222,7 @@ export class OrderTrackingService {
       status: 'checked-in',
       previousStatus,
       preparationType: checkInDto.preparationType || null,
-      departmentStatus: initialDepartmentStatus,
+      departmentStatus: initialOrderStatus,
       notes: checkInDto.notes,
     });
 
@@ -162,7 +235,7 @@ export class OrderTrackingService {
     orderItem.currentStatus = 'checked-in';
     orderItem.currentDepartmentId = checkInDto.departmentId;
     orderItem.preparationType = checkInDto.preparationType || null;
-    orderItem.currentDepartmentStatus = initialDepartmentStatus;
+    orderItem.orderStatus = initialOrderStatus;
     orderItem.handedOverDepartmentId = null;
     await this.orderItemRepository.save(orderItem);
 
@@ -264,8 +337,15 @@ export class OrderTrackingService {
   async updateStatus(
     updateStatusDto: UpdateStatusDto,
   ): Promise<{ tracking: OrderItemTracking; message: string }> {
-    // Verify user password
-    const user = await this.verifyUserPassword(updateStatusDto.userId, updateStatusDto.password);
+    // Get user by ID (with relations for department/role if needed)
+    const user = await this.userRepository.findOne({
+      where: { id: updateStatusDto.userId },
+      relations: ['role', 'department'],
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
 
     // Find order item by QR code
     const orderItem = await this.orderItemRepository.findOne({
@@ -296,40 +376,10 @@ export class OrderTrackingService {
       'delivered': [], // Cannot transition from delivered
     };
 
-    const allowedStatuses = validTransitions[orderItem.currentStatus] || [];
-    if (!allowedStatuses.includes(updateStatusDto.status)) {
-      throw new BadRequestException(ORDER_TRACKING_MESSAGES.INVALID_STATUS_TRANSITION);
-    }
-
-    // Verify department context for status updates
-    if (updateStatusDto.status === 'in-progress') {
-      // To set in-progress, item must be checked-in to THIS department
-      if (orderItem.currentStatus !== 'checked-in' && orderItem.currentStatus !== 'in-progress') {
-        throw new BadRequestException('Order item must be checked-in before setting to in-progress');
-      }
-      if (orderItem.currentDepartmentId !== updateStatusDto.departmentId) {
-        throw new BadRequestException(
-          `Order item is not checked in to this department. Current department: ${orderItem.currentDepartmentId || 'none'}`,
-        );
-      }
-    }
-
-    if (updateStatusDto.departmentStatus) {
-      const currentDeptStatus = orderItem.currentDepartmentStatus as DepartmentStatus;
-      if (currentDeptStatus) {
-        const validNextStatuses = StatusTransitions[currentDeptStatus] || [];
-        const newDeptStatus = updateStatusDto.departmentStatus as DepartmentStatus;
-        if (!validNextStatuses.includes(newDeptStatus)) {
-          throw new BadRequestException(
-            `Invalid department status transition from ${currentDeptStatus} to ${newDeptStatus}. Valid next statuses: ${validNextStatuses.join(', ')}`,
-          );
-        }
-      }
-    }
+    // All strict validations removed - allow any status update
 
     // Create tracking record
     const previousStatus = orderItem.currentStatus;
-    const previousDepartmentStatus = orderItem.currentDepartmentStatus;
     const tracking = this.trackingRepository.create({
       orderItemId: orderItem.id,
       departmentId: updateStatusDto.departmentId,
@@ -338,7 +388,7 @@ export class OrderTrackingService {
       status: updateStatusDto.status,
       previousStatus,
       preparationType: updateStatusDto.preparationType || null,
-      departmentStatus: updateStatusDto.departmentStatus || null,
+      departmentStatus: updateStatusDto.orderStatus || null,
       notes: updateStatusDto.notes,
     });
 
@@ -353,9 +403,9 @@ export class OrderTrackingService {
     if (updateStatusDto.preparationType) {
       orderItem.preparationType = updateStatusDto.preparationType;
     }
-    // Update department status if provided
-    if (updateStatusDto.departmentStatus) {
-      orderItem.currentDepartmentStatus = updateStatusDto.departmentStatus;
+    // Update order status if provided
+    if (updateStatusDto.orderStatus) {
+      orderItem.orderStatus = updateStatusDto.orderStatus;
     }
     await this.orderItemRepository.save(orderItem);
 
@@ -398,6 +448,13 @@ export class OrderTrackingService {
       throw new NotFoundException(ORDER_TRACKING_MESSAGES.DEPARTMENT_NOT_FOUND);
     }
 
+    // Validate that return status is valid for the user's role
+    await this.validateOrderStatusForUser(
+      user,
+      returnToStageDto.departmentId,
+      returnToStageDto.returnToStatus,
+    );
+
     // Validate that return status is valid (can return to any previous stage)
     const validReturnStatuses = [
       DepartmentStatus.CUTTING_IN_PROGRESS,
@@ -415,7 +472,6 @@ export class OrderTrackingService {
 
     // Create tracking record for return
     const previousStatus = orderItem.currentStatus;
-    const previousDepartmentStatus = orderItem.currentDepartmentStatus;
     
     const tracking = this.trackingRepository.create({
       orderItemId: orderItem.id,
@@ -432,7 +488,7 @@ export class OrderTrackingService {
 
     // Update order item - return to specified stage
     orderItem.currentStatus = 'in-progress';
-    orderItem.currentDepartmentStatus = returnToStageDto.returnToStatus;
+    orderItem.orderStatus = returnToStageDto.returnToStatus;
     // Note: currentDepartmentId should be set to the department handling the return
     // This might need to be determined based on the return status
     await this.orderItemRepository.save(orderItem);
@@ -645,8 +701,13 @@ export class OrderTrackingService {
 
             await this.orderItemRepository.save(orderItem);
 
+            // Generate QR code for new item
             const hash = crypto.randomBytes(16).toString('hex');
             orderItem.qrCode = `ORDER_ITEM_${orderItem.id}_${hash}`;
+            
+            // Generate QR code URL with store name
+            orderItem.qrCodeUrl = this.generateQRCodeUrl(orderItem.id, storeName);
+            
             await this.orderItemRepository.save(orderItem);
 
             syncedCount++;
@@ -791,8 +852,8 @@ export class OrderTrackingService {
         existingItem.isLeather = itemData.isLeather ?? false;
         existingItem.isPattern = itemData.isPattern ?? false;
         
-        if (itemData.currentDepartmentStatus !== undefined) {
-          existingItem.currentDepartmentStatus = itemData.currentDepartmentStatus || null;
+        if (itemData.orderStatus !== undefined) {
+          existingItem.orderStatus = itemData.orderStatus || null;
         }
         
         // Update visibility status if provided
@@ -813,7 +874,7 @@ export class OrderTrackingService {
           quantity: itemData.quantity || 1,
           isLeather: itemData.isLeather ?? false,
           isPattern: itemData.isPattern ?? false,
-          currentDepartmentStatus: itemData.currentDepartmentStatus || null,
+          orderStatus: itemData.orderStatus || null,
           visibilityStatus: customSyncDto.visibilityStatus || null,
           currentStatus: 'pending',
         };
@@ -825,6 +886,10 @@ export class OrderTrackingService {
         // Generate QR code for new item
         const hash = crypto.randomBytes(16).toString('hex');
         orderItem.qrCode = `ORDER_ITEM_${orderItem.id}_${hash}`;
+        
+        // Generate QR code URL with store name
+        orderItem.qrCodeUrl = this.generateQRCodeUrl(orderItem.id, customSyncDto.storeName);
+        
         await this.orderItemRepository.save(orderItem);
 
         syncedCount++;

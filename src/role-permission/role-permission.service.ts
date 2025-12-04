@@ -8,16 +8,20 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, Brackets } from 'typeorm';
 import { Role } from './entities/role.entity';
 import { Permission } from './entities/permission.entity';
+import { OrderStatus } from '../order-tracking/entities/order-status.entity';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { CreatePermissionDto } from './dto/create-permission.dto';
 import { UpdatePermissionDto } from './dto/update-permission.dto';
 import { AssignPermissionsDto } from './dto/assign-permissions.dto';
+import { AssignOrderStatusesDto } from './dto/assign-order-statuses.dto';
+import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { GetRolesDto } from './dto/get-roles.dto';
 import { GetPermissionsDto } from './dto/get-permissions.dto';
 import { ROLE_PERMISSION_MESSAGES } from './messages/role-permission.messages';
 import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
 import { SortEnum } from '../common/dto/pagination.dto';
+import { DepartmentStatus } from '../order-tracking/enums/department-status.enum';
 
 @Injectable()
 export class RolePermissionService {
@@ -26,6 +30,8 @@ export class RolePermissionService {
     private readonly roleRepository: Repository<Role>,
     @InjectRepository(Permission)
     private readonly permissionRepository: Repository<Permission>,
+    @InjectRepository(OrderStatus)
+    private readonly orderStatusRepository: Repository<OrderStatus>,
   ) {}
 
 
@@ -51,10 +57,29 @@ export class RolePermissionService {
     }
 
     const savedRole = await this.roleRepository.save(role);
+
+    // Handle order statuses if provided
+    if (createRoleDto.orderStatuses && createRoleDto.orderStatuses.length > 0) {
+      const orderStatuses = createRoleDto.orderStatuses.map((statusDto) =>
+        this.orderStatusRepository.create({
+          roleId: savedRole.id,
+          status: statusDto.status,
+          displayOrder: statusDto.displayOrder ?? 0,
+          isActive: statusDto.isActive ?? true,
+        }),
+      );
+      await this.orderStatusRepository.save(orderStatuses);
+    }
+
     const roleWithPermissions = await this.roleRepository.findOne({
       where: { id: savedRole.id },
-      relations: ['permissions'],
+      relations: ['permissions', 'orderStatuses'],
     });
+
+    // Sort orderStatuses by displayOrder if they exist
+    if (roleWithPermissions?.orderStatuses) {
+      roleWithPermissions.orderStatuses.sort((a, b) => a.displayOrder - b.displayOrder);
+    }
 
     return {
       role: roleWithPermissions!,
@@ -74,7 +99,10 @@ export class RolePermissionService {
 
     const qb = this.roleRepository
       .createQueryBuilder('role')
-      .leftJoinAndSelect('role.permissions', 'permissions');
+      .leftJoinAndSelect('role.permissions', 'permissions')
+      .leftJoinAndSelect('role.orderStatuses', 'orderStatuses')
+      .addOrderBy('orderStatuses.displayOrder', 'ASC')
+      .addOrderBy('orderStatuses.createdAt', 'ASC');
 
     // Search query
     if (query) {
@@ -113,6 +141,14 @@ export class RolePermissionService {
     }
 
     const [roles, total] = await qb.getManyAndCount();
+    
+    // Sort orderStatuses by displayOrder for each role
+    roles.forEach((role) => {
+      if (role.orderStatuses) {
+        role.orderStatuses.sort((a, b) => a.displayOrder - b.displayOrder);
+      }
+    });
+
     const lastPage = limit ? Math.ceil(total / limit) : 1;
 
     return {
@@ -127,11 +163,16 @@ export class RolePermissionService {
   async findOneRole(id: string): Promise<{ role: Role; message: string }> {
     const role = await this.roleRepository.findOne({
       where: { id },
-      relations: ['permissions', 'users'],
+      relations: ['permissions', 'users', 'orderStatuses'],
     });
 
     if (!role) {
       throw new NotFoundException(ROLE_PERMISSION_MESSAGES.ROLE_NOT_FOUND);
+    }
+
+    // Sort orderStatuses by displayOrder if they exist
+    if (role.orderStatuses) {
+      role.orderStatuses.sort((a, b) => a.displayOrder - b.displayOrder);
     }
 
     return {
@@ -141,10 +182,17 @@ export class RolePermissionService {
   }
 
   async findRoleByName(name: string): Promise<Role | null> {
-    return await this.roleRepository.findOne({
+    const role = await this.roleRepository.findOne({
       where: { name },
-      relations: ['permissions'],
+      relations: ['permissions', 'orderStatuses'],
     });
+
+    // Sort orderStatuses by displayOrder if they exist
+    if (role?.orderStatuses) {
+      role.orderStatuses.sort((a, b) => a.displayOrder - b.displayOrder);
+    }
+
+    return role;
   }
 
   async updateRole(
@@ -186,13 +234,42 @@ export class RolePermissionService {
       role.permissions = permissions;
     }
 
-    const { permissionIds, ...updateData } = updateRoleDto;
+    // Handle order statuses if provided
+    if (updateRoleDto.orderStatuses !== undefined) {
+      // Remove existing order statuses
+      const existingStatuses = await this.orderStatusRepository.find({
+        where: { roleId: id },
+      });
+      if (existingStatuses.length > 0) {
+        await this.orderStatusRepository.remove(existingStatuses);
+      }
+
+      // Create new order statuses if provided
+      if (updateRoleDto.orderStatuses.length > 0) {
+        const orderStatuses = updateRoleDto.orderStatuses.map((statusDto) =>
+          this.orderStatusRepository.create({
+            roleId: id,
+            status: statusDto.status,
+            displayOrder: statusDto.displayOrder ?? 0,
+            isActive: statusDto.isActive ?? true,
+          }),
+        );
+        await this.orderStatusRepository.save(orderStatuses);
+      }
+    }
+
+    const { permissionIds, orderStatuses, ...updateData } = updateRoleDto;
     Object.assign(role, updateData);
     const updatedRole = await this.roleRepository.save(role);
     const roleWithPermissions = await this.roleRepository.findOne({
       where: { id: updatedRole.id },
-      relations: ['permissions'],
+      relations: ['permissions', 'orderStatuses'],
     });
+
+    // Sort orderStatuses by displayOrder if they exist
+    if (roleWithPermissions?.orderStatuses) {
+      roleWithPermissions.orderStatuses.sort((a, b) => a.displayOrder - b.displayOrder);
+    }
 
     return {
       role: roleWithPermissions!,
@@ -236,8 +313,13 @@ export class RolePermissionService {
 
     const roleWithPermissions = await this.roleRepository.findOne({
       where: { id },
-      relations: ['permissions'],
+      relations: ['permissions', 'orderStatuses'],
     });
+
+    // Sort orderStatuses by displayOrder if they exist
+    if (roleWithPermissions?.orderStatuses) {
+      roleWithPermissions.orderStatuses.sort((a, b) => a.displayOrder - b.displayOrder);
+    }
 
     return {
       role: roleWithPermissions!,
@@ -434,6 +516,189 @@ export class RolePermissionService {
 
     return {
       message: ROLE_PERMISSION_MESSAGES.PERMISSION_DELETED,
+    };
+  }
+
+  // ========== Order Status Management ==========
+
+  /**
+   * Assign order statuses to a role
+   */
+  async assignOrderStatuses(
+    roleId: string,
+    assignStatusesDto: AssignOrderStatusesDto,
+  ): Promise<{ role: Role; message: string }> {
+    const role = await this.roleRepository.findOne({
+      where: { id: roleId },
+      relations: ['orderStatuses'],
+    });
+
+    if (!role) {
+      throw new NotFoundException(ROLE_PERMISSION_MESSAGES.ROLE_NOT_FOUND);
+    }
+
+    // Remove existing statuses
+    if (role.orderStatuses && role.orderStatuses.length > 0) {
+      await this.orderStatusRepository.remove(role.orderStatuses);
+    }
+
+    // Create new statuses
+    const statuses = assignStatusesDto.statuses.map((statusDto) =>
+      this.orderStatusRepository.create({
+        roleId,
+        status: statusDto.status,
+        displayOrder: statusDto.displayOrder ?? 0,
+        isActive: statusDto.isActive ?? true,
+      }),
+    );
+
+    await this.orderStatusRepository.save(statuses);
+
+    // Return role with updated statuses
+    const updatedRole = await this.roleRepository.findOne({
+      where: { id: roleId },
+      relations: ['orderStatuses', 'permissions'],
+    });
+
+    // Sort statuses by displayOrder if they exist
+    if (updatedRole?.orderStatuses) {
+      updatedRole.orderStatuses.sort((a, b) => a.displayOrder - b.displayOrder);
+    }
+
+    return {
+      role: updatedRole!,
+      message: 'Order statuses assigned successfully',
+    };
+  }
+
+  /**
+   * Get all order statuses for a role
+   */
+  async getRoleOrderStatuses(roleId: string): Promise<{
+    statuses: OrderStatus[];
+    message: string;
+  }> {
+    const role = await this.roleRepository.findOne({
+      where: { id: roleId },
+    });
+
+    if (!role) {
+      throw new NotFoundException(ROLE_PERMISSION_MESSAGES.ROLE_NOT_FOUND);
+    }
+
+    const statuses = await this.orderStatusRepository.find({
+      where: { roleId },
+      order: { displayOrder: 'ASC', createdAt: 'ASC' },
+    });
+
+    return {
+      statuses,
+      message: 'Order statuses retrieved successfully',
+    };
+  }
+
+  /**
+   * Update a specific order status
+   */
+  async updateOrderStatus(
+    roleId: string,
+    status: string,
+    updateDto: UpdateOrderStatusDto,
+  ): Promise<{ status: OrderStatus; message: string }> {
+    const orderStatus = await this.orderStatusRepository.findOne({
+      where: { roleId, status },
+    });
+
+    if (!orderStatus) {
+      throw new NotFoundException('Order status not found');
+    }
+
+    if (updateDto.displayOrder !== undefined) {
+      orderStatus.displayOrder = updateDto.displayOrder;
+    }
+    if (updateDto.isActive !== undefined) {
+      orderStatus.isActive = updateDto.isActive;
+    }
+
+    const updated = await this.orderStatusRepository.save(orderStatus);
+
+    return {
+      status: updated,
+      message: 'Order status updated successfully',
+    };
+  }
+
+  /**
+   * Remove a status from a role
+   */
+  async removeOrderStatus(
+    roleId: string,
+    status: string,
+  ): Promise<{ message: string }> {
+    const orderStatus = await this.orderStatusRepository.findOne({
+      where: { roleId, status },
+    });
+
+    if (!orderStatus) {
+      throw new NotFoundException('Order status not found');
+    }
+
+    await this.orderStatusRepository.remove(orderStatus);
+
+    return {
+      message: 'Order status removed successfully',
+    };
+  }
+
+  /**
+   * Get available order statuses for a role (for validation)
+   */
+  async getAvailableStatusesForRole(roleId: string): Promise<string[]> {
+    const statuses = await this.orderStatusRepository.find({
+      where: { roleId, isActive: true },
+      order: { displayOrder: 'ASC' },
+    });
+
+    return statuses.map((s) => s.status);
+  }
+
+  /**
+   * Check if a status is valid for a role
+   */
+  async isStatusValidForRole(
+    roleId: string,
+    status: string,
+  ): Promise<boolean> {
+    const orderStatus = await this.orderStatusRepository.findOne({
+      where: { roleId, status, isActive: true },
+    });
+
+    return !!orderStatus;
+  }
+
+  /**
+   * Get all available order statuses from enum (for dropdown)
+   */
+  async getAvailableOrderStatuses(): Promise<{
+    statuses: Array<{ value: string; label: string }>;
+    message: string;
+  }> {
+    const statuses = Object.values(DepartmentStatus).map((status) => {
+      // Convert snake_case to Title Case for display
+      const label = status
+        .split('_')
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+
+      return {
+        value: status,
+        label,
+      };
+    });
+
+    return {
+      statuses,
+      message: 'Available order statuses retrieved successfully',
     };
   }
 }

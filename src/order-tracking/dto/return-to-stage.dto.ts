@@ -19,12 +19,12 @@ export class ReturnToStageDto {
   qrCode: string;
 
   @ApiProperty({
-    description: 'Department status to return to',
+    description: 'Order status to return to',
     enum: DepartmentStatus,
     example: 'cutting_in_progress',
   })
-  @IsEnum(DepartmentStatus, { message: 'Invalid department status' })
-  @IsNotEmpty({ message: 'Department status is required' })
+  @IsEnum(DepartmentStatus, { message: 'Invalid order status' })
+  @IsNotEmpty({ message: 'Order status is required' })
   returnToStatus: DepartmentStatus;
 
   @ApiProperty({

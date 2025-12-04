@@ -11,6 +11,7 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Permission } from './permission.entity';
 import { User } from '../../user/entities/user.entity';
+import { OrderStatus } from '../../order-tracking/entities/order-status.entity';
 
 @Entity('roles')
 export class Role {
@@ -56,6 +57,14 @@ export class Role {
 
   @OneToMany(() => User, (user) => user.role)
   users: User[];
+
+  @ApiPropertyOptional({
+    description: 'Order statuses that can be used by this role',
+    type: () => OrderStatus,
+    isArray: true,
+  })
+  @OneToMany(() => OrderStatus, (orderStatus) => orderStatus.role)
+  orderStatuses: OrderStatus[];
 
   @ApiProperty({ description: 'Role creation timestamp' })
   @CreateDateColumn({ name: 'created_at' })

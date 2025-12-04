@@ -130,4 +130,5 @@ export class DepartmentController {
   async remove(@Param('id') id: string) {
     return this.departmentService.remove(id);
   }
+
 }

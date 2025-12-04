@@ -81,7 +81,7 @@ export class OrderItemTracking {
   preparationType: string | null;
 
   @ApiProperty({ 
-    description: 'Department-specific status at time of action',
+    description: 'Order status at time of action',
     example: 'cutting_in_progress',
     nullable: true
   })
