@@ -50,9 +50,24 @@ export class OrderTrackingService {
   ) {}
 
   /**
+   * Generate QR code URL for an order item
+   */
+  private generateQRCodeUrl(orderItemId: string, storeName: string): string {
+    const frontendUrl = this.configService.get<string>('frontendUrl') || 
+                       process.env.FRONTEND_URL || 
+                       'http://localhost:3000';
+    
+    // Remove trailing slash if present
+    const baseUrl = frontendUrl.replace(/\/$/, '');
+    
+    // Generate URL pattern: FE_URL/orders/{store_name}?orderItemId={orderItemId}
+    return `${baseUrl}/orders/${storeName}?orderItemId=${orderItemId}`;
+  }
+
+  /**
    * Generate QR code for an order item
    */
-  async generateQRCode(orderItemId: string): Promise<{ qrCode: string; message: string }> {
+  async generateQRCode(orderItemId: string): Promise<{ qrCode: string; qrCodeUrl: string | null; message: string }> {
     const orderItem = await this.orderItemRepository.findOne({
       where: { id: orderItemId },
     });
@@ -65,11 +80,16 @@ export class OrderTrackingService {
     const hash = crypto.randomBytes(16).toString('hex');
     const qrCode = `ORDER_ITEM_${orderItem.id}_${hash}`;
 
+    // Generate QR code URL
+    const qrCodeUrl = this.generateQRCodeUrl(orderItem.id, orderItem.storeName);
+
     orderItem.qrCode = qrCode;
+    orderItem.qrCodeUrl = qrCodeUrl;
     await this.orderItemRepository.save(orderItem);
 
     return {
       qrCode,
+      qrCodeUrl,
       message: ORDER_TRACKING_MESSAGES.QR_CODE_GENERATED,
     };
   }
@@ -710,8 +730,13 @@ export class OrderTrackingService {
 
             await this.orderItemRepository.save(orderItem);
 
+            // Generate QR code for new item
             const hash = crypto.randomBytes(16).toString('hex');
             orderItem.qrCode = `ORDER_ITEM_${orderItem.id}_${hash}`;
+            
+            // Generate QR code URL with store name
+            orderItem.qrCodeUrl = this.generateQRCodeUrl(orderItem.id, storeName);
+            
             await this.orderItemRepository.save(orderItem);
 
             syncedCount++;
@@ -890,6 +915,10 @@ export class OrderTrackingService {
         // Generate QR code for new item
         const hash = crypto.randomBytes(16).toString('hex');
         orderItem.qrCode = `ORDER_ITEM_${orderItem.id}_${hash}`;
+        
+        // Generate QR code URL with store name
+        orderItem.qrCodeUrl = this.generateQRCodeUrl(orderItem.id, customSyncDto.storeName);
+        
         await this.orderItemRepository.save(orderItem);
 
         syncedCount++;
