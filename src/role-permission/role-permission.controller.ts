@@ -25,11 +25,14 @@ import { UpdatePermissionDto } from './dto/update-permission.dto';
 import { AssignPermissionsDto } from './dto/assign-permissions.dto';
 import { AssignOrderStatusesDto } from './dto/assign-order-statuses.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
+import { AssignRoleVisibilitiesDto } from './dto/assign-role-visibilities.dto';
+import { UpdateRoleVisibilityDto } from './dto/update-role-visibility.dto';
 import { GetRolesDto } from './dto/get-roles.dto';
 import { GetPermissionsDto } from './dto/get-permissions.dto';
 import { Role } from './entities/role.entity';
 import { Permission } from './entities/permission.entity';
 import { OrderStatus } from '../order-tracking/entities/order-status.entity';
+import { RoleVisibility } from './entities/role-visibility.entity';
 import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
 
 @ApiTags('Roles & Permissions')
@@ -297,5 +300,94 @@ export class RolePermissionController {
   })
   async getAvailableOrderStatuses() {
     return this.rolePermissionService.getAvailableOrderStatuses();
+  }
+
+  // ========== Role Visibility Management Endpoints ==========
+
+  @Post('roles/:id/role-visibilities')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Assign role visibilities to a role' })
+  @ApiParam({ name: 'id', description: 'Role ID (UUID)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Role visibilities assigned successfully',
+    type: Role,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Role not found or visible roles not found',
+  })
+  async assignRoleVisibilities(
+    @Param('id') id: string,
+    @Body() assignVisibilitiesDto: AssignRoleVisibilitiesDto,
+  ) {
+    return this.rolePermissionService.assignRoleVisibilities(id, assignVisibilitiesDto);
+  }
+
+  @Get('roles/:id/role-visibilities')
+  @ApiOperation({ summary: 'Get all role visibilities for a role' })
+  @ApiParam({ name: 'id', description: 'Role ID (UUID)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Role visibilities retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        visibilities: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/RoleVisibility' },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Role not found',
+  })
+  async getRoleVisibilities(@Param('id') id: string) {
+    return this.rolePermissionService.getRoleVisibilities(id);
+  }
+
+  @Patch('roles/:id/role-visibilities/:visibleRoleId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update a specific role visibility' })
+  @ApiParam({ name: 'id', description: 'Role ID (UUID)' })
+  @ApiParam({ name: 'visibleRoleId', description: 'Visible Role ID (UUID)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Role visibility updated successfully',
+    type: RoleVisibility,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Role or visibility not found',
+  })
+  async updateRoleVisibility(
+    @Param('id') id: string,
+    @Param('visibleRoleId') visibleRoleId: string,
+    @Body() updateDto: UpdateRoleVisibilityDto,
+  ) {
+    return this.rolePermissionService.updateRoleVisibility(id, visibleRoleId, updateDto);
+  }
+
+  @Delete('roles/:id/role-visibilities/:visibleRoleId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Remove a role visibility from a role' })
+  @ApiParam({ name: 'id', description: 'Role ID (UUID)' })
+  @ApiParam({ name: 'visibleRoleId', description: 'Visible Role ID (UUID)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Role visibility removed successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Role or visibility not found',
+  })
+  async removeRoleVisibility(
+    @Param('id') id: string,
+    @Param('visibleRoleId') visibleRoleId: string,
+  ) {
+    return this.rolePermissionService.removeRoleVisibility(id, visibleRoleId);
   }
 }

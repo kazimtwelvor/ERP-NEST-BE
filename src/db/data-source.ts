@@ -6,6 +6,7 @@ import { Department } from '../department/entities/department.entity';
 import { OrderItem } from '../order-tracking/entities/order-item.entity';
 import { OrderItemTracking } from '../order-tracking/entities/order-item-tracking.entity';
 import { OrderStatus } from '../order-tracking/entities/order-status.entity';
+import { RoleVisibility } from '../role-permission/entities/role-visibility.entity';
 
 try {
   require('dotenv').config();
@@ -19,7 +20,7 @@ export const dataSourceOptions: DataSourceOptions = {
   username: process.env.DB_USERNAME || 'postgres',
   password: process.env.DB_PASSWORD || 'postgres',
   database: process.env.DB_DATABASE || 'erp_database',
-  entities: [User, Role, Permission, Department, OrderItem, OrderItemTracking, OrderStatus],
+  entities: [User, Role, Permission, Department, OrderItem, OrderItemTracking, OrderStatus, RoleVisibility],
   migrations: ['src/db/migrations/*.ts'],
   synchronize: false,
   logging: process.env.DB_LOGGING === 'true' || process.env.NODE_ENV === 'development',
