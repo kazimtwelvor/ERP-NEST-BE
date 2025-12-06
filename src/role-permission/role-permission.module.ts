@@ -5,9 +5,10 @@ import { RolePermissionController } from './role-permission.controller';
 import { Role } from './entities/role.entity';
 import { Permission } from './entities/permission.entity';
 import { OrderStatus } from '../order-tracking/entities/order-status.entity';
+import { RoleVisibility } from './entities/role-visibility.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Role, Permission, OrderStatus])],
+  imports: [TypeOrmModule.forFeature([Role, Permission, OrderStatus, RoleVisibility])],
   controllers: [RolePermissionController],
   providers: [RolePermissionService],
   exports: [RolePermissionService],

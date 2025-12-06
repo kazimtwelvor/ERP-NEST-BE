@@ -9,6 +9,7 @@ import { Repository, In, Brackets } from 'typeorm';
 import { Role } from './entities/role.entity';
 import { Permission } from './entities/permission.entity';
 import { OrderStatus } from '../order-tracking/entities/order-status.entity';
+import { RoleVisibility } from './entities/role-visibility.entity';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { CreatePermissionDto } from './dto/create-permission.dto';
@@ -16,6 +17,8 @@ import { UpdatePermissionDto } from './dto/update-permission.dto';
 import { AssignPermissionsDto } from './dto/assign-permissions.dto';
 import { AssignOrderStatusesDto } from './dto/assign-order-statuses.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
+import { AssignRoleVisibilitiesDto } from './dto/assign-role-visibilities.dto';
+import { UpdateRoleVisibilityDto } from './dto/update-role-visibility.dto';
 import { GetRolesDto } from './dto/get-roles.dto';
 import { GetPermissionsDto } from './dto/get-permissions.dto';
 import { ROLE_PERMISSION_MESSAGES } from './messages/role-permission.messages';
@@ -32,6 +35,8 @@ export class RolePermissionService {
     private readonly permissionRepository: Repository<Permission>,
     @InjectRepository(OrderStatus)
     private readonly orderStatusRepository: Repository<OrderStatus>,
+    @InjectRepository(RoleVisibility)
+    private readonly roleVisibilityRepository: Repository<RoleVisibility>,
   ) {}
 
 
@@ -101,8 +106,12 @@ export class RolePermissionService {
       .createQueryBuilder('role')
       .leftJoinAndSelect('role.permissions', 'permissions')
       .leftJoinAndSelect('role.orderStatuses', 'orderStatuses')
+      .leftJoinAndSelect('role.roleVisibilities', 'roleVisibilities')
+      .leftJoinAndSelect('roleVisibilities.visibleRole', 'visibleRole')
       .addOrderBy('orderStatuses.displayOrder', 'ASC')
-      .addOrderBy('orderStatuses.createdAt', 'ASC');
+      .addOrderBy('orderStatuses.createdAt', 'ASC')
+      .addOrderBy('roleVisibilities.displayOrder', 'ASC')
+      .addOrderBy('roleVisibilities.createdAt', 'ASC');
 
     // Search query
     if (query) {
@@ -142,10 +151,13 @@ export class RolePermissionService {
 
     const [roles, total] = await qb.getManyAndCount();
     
-    // Sort orderStatuses by displayOrder for each role
+    // Sort orderStatuses and roleVisibilities by displayOrder for each role
     roles.forEach((role) => {
       if (role.orderStatuses) {
         role.orderStatuses.sort((a, b) => a.displayOrder - b.displayOrder);
+      }
+      if (role.roleVisibilities) {
+        role.roleVisibilities.sort((a, b) => a.displayOrder - b.displayOrder);
       }
     });
 
@@ -163,16 +175,19 @@ export class RolePermissionService {
   async findOneRole(id: string): Promise<{ role: Role; message: string }> {
     const role = await this.roleRepository.findOne({
       where: { id },
-      relations: ['permissions', 'users', 'orderStatuses'],
+      relations: ['permissions', 'users', 'orderStatuses', 'roleVisibilities', 'roleVisibilities.visibleRole'],
     });
 
     if (!role) {
       throw new NotFoundException(ROLE_PERMISSION_MESSAGES.ROLE_NOT_FOUND);
     }
 
-    // Sort orderStatuses by displayOrder if they exist
+    // Sort orderStatuses and roleVisibilities by displayOrder if they exist
     if (role.orderStatuses) {
       role.orderStatuses.sort((a, b) => a.displayOrder - b.displayOrder);
+    }
+    if (role.roleVisibilities) {
+      role.roleVisibilities.sort((a, b) => a.displayOrder - b.displayOrder);
     }
 
     return {
@@ -700,5 +715,179 @@ export class RolePermissionService {
       statuses,
       message: 'Available order statuses retrieved successfully',
     };
+  }
+
+  // ========== Role Visibility Management ==========
+
+  /**
+   * Assign role visibilities to a role
+   */
+  async assignRoleVisibilities(
+    roleId: string,
+    assignVisibilitiesDto: AssignRoleVisibilitiesDto,
+  ): Promise<{ role: Role; message: string }> {
+    const role = await this.roleRepository.findOne({
+      where: { id: roleId },
+      relations: ['roleVisibilities'],
+    });
+
+    if (!role) {
+      throw new NotFoundException(ROLE_PERMISSION_MESSAGES.ROLE_NOT_FOUND);
+    }
+
+    // Validate that all visible role IDs exist
+    const visibleRoleIds = assignVisibilitiesDto.roleVisibilities.map(
+      (v) => v.visibleRoleId,
+    );
+    const existingRoles = await this.roleRepository.find({
+      where: { id: In(visibleRoleIds) },
+    });
+
+    if (existingRoles.length !== visibleRoleIds.length) {
+      const foundIds = existingRoles.map((r) => r.id);
+      const missingIds = visibleRoleIds.filter((id) => !foundIds.includes(id));
+      throw new NotFoundException(
+        `Roles not found: ${missingIds.join(', ')}`,
+      );
+    }
+
+    // Remove existing visibilities
+    if (role.roleVisibilities && role.roleVisibilities.length > 0) {
+      await this.roleVisibilityRepository.remove(role.roleVisibilities);
+    }
+
+    // Create new visibilities
+    const visibilities = assignVisibilitiesDto.roleVisibilities.map((visibilityDto) =>
+      this.roleVisibilityRepository.create({
+        roleId,
+        visibleRoleId: visibilityDto.visibleRoleId,
+        displayOrder: visibilityDto.displayOrder ?? 0,
+        isActive: visibilityDto.isActive ?? true,
+      }),
+    );
+
+    await this.roleVisibilityRepository.save(visibilities);
+
+    // Return role with updated visibilities
+    const updatedRole = await this.roleRepository.findOne({
+      where: { id: roleId },
+      relations: ['roleVisibilities', 'permissions'],
+    });
+
+    // Sort visibilities by displayOrder if they exist
+    if (updatedRole?.roleVisibilities) {
+      updatedRole.roleVisibilities.sort((a, b) => a.displayOrder - b.displayOrder);
+    }
+
+    return {
+      role: updatedRole!,
+      message: 'Role visibilities assigned successfully',
+    };
+  }
+
+  /**
+   * Get all role visibilities for a role
+   */
+  async getRoleVisibilities(roleId: string): Promise<{
+    visibilities: RoleVisibility[];
+    message: string;
+  }> {
+    const role = await this.roleRepository.findOne({
+      where: { id: roleId },
+    });
+
+    if (!role) {
+      throw new NotFoundException(ROLE_PERMISSION_MESSAGES.ROLE_NOT_FOUND);
+    }
+
+    const visibilities = await this.roleVisibilityRepository.find({
+      where: { roleId },
+      order: { displayOrder: 'ASC', createdAt: 'ASC' },
+      relations: ['role', 'visibleRole'],
+    });
+
+    return {
+      visibilities,
+      message: 'Role visibilities retrieved successfully',
+    };
+  }
+
+  /**
+   * Update a specific role visibility
+   */
+  async updateRoleVisibility(
+    roleId: string,
+    visibleRoleId: string,
+    updateDto: UpdateRoleVisibilityDto,
+  ): Promise<{ visibility: RoleVisibility; message: string }> {
+    const roleVisibility = await this.roleVisibilityRepository.findOne({
+      where: { roleId, visibleRoleId },
+    });
+
+    if (!roleVisibility) {
+      throw new NotFoundException('Role visibility not found');
+    }
+
+    if (updateDto.displayOrder !== undefined) {
+      roleVisibility.displayOrder = updateDto.displayOrder;
+    }
+    if (updateDto.isActive !== undefined) {
+      roleVisibility.isActive = updateDto.isActive;
+    }
+
+    const updated = await this.roleVisibilityRepository.save(roleVisibility);
+
+    return {
+      visibility: updated,
+      message: 'Role visibility updated successfully',
+    };
+  }
+
+  /**
+   * Remove a role visibility from a role
+   */
+  async removeRoleVisibility(
+    roleId: string,
+    visibleRoleId: string,
+  ): Promise<{ message: string }> {
+    const roleVisibility = await this.roleVisibilityRepository.findOne({
+      where: { roleId, visibleRoleId },
+    });
+
+    if (!roleVisibility) {
+      throw new NotFoundException('Role visibility not found');
+    }
+
+    await this.roleVisibilityRepository.remove(roleVisibility);
+
+    return {
+      message: 'Role visibility removed successfully',
+    };
+  }
+
+  /**
+   * Get visible roles for a role (returns role IDs that are visible)
+   */
+  async getVisibleRoleIds(roleId: string): Promise<string[]> {
+    const visibilities = await this.roleVisibilityRepository.find({
+      where: { roleId, isActive: true },
+      order: { displayOrder: 'ASC' },
+    });
+
+    return visibilities.map((v) => v.visibleRoleId);
+  }
+
+  /**
+   * Check if a role is visible to another role
+   */
+  async isRoleVisible(
+    roleId: string,
+    visibleRoleId: string,
+  ): Promise<boolean> {
+    const roleVisibility = await this.roleVisibilityRepository.findOne({
+      where: { roleId, visibleRoleId, isActive: true },
+    });
+
+    return !!roleVisibility;
   }
 }

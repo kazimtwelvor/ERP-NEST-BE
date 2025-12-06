@@ -12,6 +12,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Permission } from './permission.entity';
 import { User } from '../../user/entities/user.entity';
 import { OrderStatus } from '../../order-tracking/entities/order-status.entity';
+import { RoleVisibility } from './role-visibility.entity';
 
 @Entity('roles')
 export class Role {
@@ -65,6 +66,14 @@ export class Role {
   })
   @OneToMany(() => OrderStatus, (orderStatus) => orderStatus.role)
   orderStatuses: OrderStatus[];
+
+  @ApiPropertyOptional({
+    description: 'Roles that are visible to this role',
+    type: () => RoleVisibility,
+    isArray: true,
+  })
+  @OneToMany(() => RoleVisibility, (roleVisibility) => roleVisibility.role)
+  roleVisibilities: RoleVisibility[];
 
   @ApiProperty({ description: 'Role creation timestamp' })
   @CreateDateColumn({ name: 'created_at' })
