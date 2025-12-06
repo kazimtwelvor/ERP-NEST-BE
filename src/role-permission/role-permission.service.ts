@@ -106,8 +106,12 @@ export class RolePermissionService {
       .createQueryBuilder('role')
       .leftJoinAndSelect('role.permissions', 'permissions')
       .leftJoinAndSelect('role.orderStatuses', 'orderStatuses')
+      .leftJoinAndSelect('role.roleVisibilities', 'roleVisibilities')
+      .leftJoinAndSelect('roleVisibilities.visibleRole', 'visibleRole')
       .addOrderBy('orderStatuses.displayOrder', 'ASC')
-      .addOrderBy('orderStatuses.createdAt', 'ASC');
+      .addOrderBy('orderStatuses.createdAt', 'ASC')
+      .addOrderBy('roleVisibilities.displayOrder', 'ASC')
+      .addOrderBy('roleVisibilities.createdAt', 'ASC');
 
     // Search query
     if (query) {
@@ -147,10 +151,13 @@ export class RolePermissionService {
 
     const [roles, total] = await qb.getManyAndCount();
     
-    // Sort orderStatuses by displayOrder for each role
+    // Sort orderStatuses and roleVisibilities by displayOrder for each role
     roles.forEach((role) => {
       if (role.orderStatuses) {
         role.orderStatuses.sort((a, b) => a.displayOrder - b.displayOrder);
+      }
+      if (role.roleVisibilities) {
+        role.roleVisibilities.sort((a, b) => a.displayOrder - b.displayOrder);
       }
     });
 
@@ -168,16 +175,19 @@ export class RolePermissionService {
   async findOneRole(id: string): Promise<{ role: Role; message: string }> {
     const role = await this.roleRepository.findOne({
       where: { id },
-      relations: ['permissions', 'users', 'orderStatuses'],
+      relations: ['permissions', 'users', 'orderStatuses', 'roleVisibilities', 'roleVisibilities.visibleRole'],
     });
 
     if (!role) {
       throw new NotFoundException(ROLE_PERMISSION_MESSAGES.ROLE_NOT_FOUND);
     }
 
-    // Sort orderStatuses by displayOrder if they exist
+    // Sort orderStatuses and roleVisibilities by displayOrder if they exist
     if (role.orderStatuses) {
       role.orderStatuses.sort((a, b) => a.displayOrder - b.displayOrder);
+    }
+    if (role.roleVisibilities) {
+      role.roleVisibilities.sort((a, b) => a.displayOrder - b.displayOrder);
     }
 
     return {
