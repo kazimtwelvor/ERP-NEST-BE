@@ -7,6 +7,7 @@ import {
   IsArray,
   ValidateNested,
   IsObject,
+  IsUUID,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -130,5 +131,21 @@ export class CustomSyncOrderItemsDto {
   @Type(() => VisibilityStatusDto)
   @IsOptional()
   visibilityStatus?: VisibilityStatusDto;
+
+  @ApiPropertyOptional({
+    description: 'User ID for tracking records (optional, for creating tracking history when orderStatus changes)',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsUUID('4', { message: 'User ID must be a valid UUID' })
+  @IsOptional()
+  userId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Department ID for tracking records (optional, for creating tracking history when orderStatus changes)',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsUUID('4', { message: 'Department ID must be a valid UUID' })
+  @IsOptional()
+  departmentId?: string;
 }
 

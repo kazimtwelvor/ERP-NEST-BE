@@ -56,16 +56,15 @@ export class OrderItemTracking {
   actionType: string;
 
   @ApiProperty({ 
-    description: 'Status after action',
-    enum: ['pending', 'checked-in', 'in-progress', 'checked-out', 'completed', 'shipped', 'delivered'],
-    example: 'checked-in'
+    description: 'Status after action - can be currentStatus (pending, checked-in, in-progress, etc.) or orderStatus (cutting_in_progress, stitching_in_progress, etc.)',
+    example: 'cutting_in_progress'
   })
   @Column({
-    type: 'enum',
-    enum: ['pending', 'checked-in', 'in-progress', 'checked-out', 'completed', 'shipped', 'delivered'],
+    type: 'varchar',
+    nullable: true,
     name: 'status'
   })
-  status: string;
+  status: string | null;
 
   @ApiProperty({ 
     description: 'Preparation type at time of action',
@@ -93,8 +92,8 @@ export class OrderItemTracking {
   departmentStatus: string | null;
 
   @ApiProperty({ description: 'Previous status', nullable: true })
-  @Column({ name: 'previous_status', nullable: true })
-  previousStatus: string;
+  @Column({ name: 'previous_status', type: 'varchar', nullable: true })
+  previousStatus: string | null;
 
   @ApiProperty({ description: 'Notes or comments', nullable: true })
   @Column({ type: 'text', nullable: true })

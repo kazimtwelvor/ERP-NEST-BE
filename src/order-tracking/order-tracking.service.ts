@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   UnauthorizedException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere, In } from 'typeorm';
@@ -31,6 +32,8 @@ import { DepartmentStatus, StatusTransitions } from './enums/department-status.e
 
 @Injectable()
 export class OrderTrackingService {
+  private readonly logger = new Logger(OrderTrackingService.name);
+
   constructor(
     @InjectRepository(OrderItem)
     private readonly orderItemRepository: Repository<OrderItem>,
@@ -113,6 +116,88 @@ export class OrderTrackingService {
     }
 
     return user;
+  }
+
+  /**
+   * Create tracking record when orderStatus changes
+   * This method automatically creates a tracking record whenever the orderStatus field is updated
+   */
+  private async createTrackingRecordForOrderStatusUpdate(
+    orderItem: OrderItem,
+    previousOrderStatus: string | null,
+    newOrderStatus: string | null,
+    options?: {
+      userId?: string;
+      departmentId?: string;
+      notes?: string;
+      preparationType?: string | null;
+      skipIfNoChange?: boolean;
+    },
+  ): Promise<OrderItemTracking | null> {
+    // Skip if orderStatus hasn't actually changed
+    if (options?.skipIfNoChange && previousOrderStatus === newOrderStatus) {
+      this.logger.debug(`[createTrackingRecordForOrderStatusUpdate] Skipping - no change in orderStatus`);
+      return null;
+    }
+
+    // Skip if both are null/undefined
+    if (!previousOrderStatus && !newOrderStatus) {
+      this.logger.debug(`[createTrackingRecordForOrderStatusUpdate] Skipping - both statuses are null`);
+      return null;
+    }
+
+    // Determine userId and departmentId
+    let userId = options?.userId;
+    let departmentId = options?.departmentId;
+
+    // If userId not provided, try to get from orderItem's current department or use a system user
+    if (!userId) {
+      // Try to find a system user or use the current department's default user
+      // For now, we'll skip tracking if no user context is available
+      // In production, you might want to create a system user for automated updates
+      if (!departmentId && orderItem.currentDepartmentId) {
+        departmentId = orderItem.currentDepartmentId;
+      }
+      // If still no context, skip tracking for automated updates
+      if (!userId && !departmentId) {
+        this.logger.warn(`[createTrackingRecordForOrderStatusUpdate] Skipping - no userId or departmentId available`);
+        return null;
+      }
+    }
+
+    // If departmentId not provided, use current department from orderItem
+    if (!departmentId && orderItem.currentDepartmentId) {
+      departmentId = orderItem.currentDepartmentId;
+    }
+
+    // If we still don't have required context, skip tracking
+    // This can happen in sync operations where user context isn't available
+    if (!userId || !departmentId) {
+      this.logger.warn(`[createTrackingRecordForOrderStatusUpdate] Skipping - missing required context (userId: ${userId ? 'provided' : 'MISSING'}, departmentId: ${departmentId ? 'provided' : 'MISSING'})`);
+      return null;
+    }
+
+    // Store orderStatus in status field, and previous orderStatus in previousStatus field
+    // This allows tracking the actual orderStatus changes (cutting_in_progress, stitching_in_progress, etc.)
+    const trackingStatus = newOrderStatus || orderItem.currentStatus || 'in-progress';
+    const trackingPreviousStatus = previousOrderStatus || orderItem.currentStatus || null;
+
+    // Create tracking record - store orderStatus in status field
+    const tracking = new OrderItemTracking();
+    tracking.orderItemId = orderItem.id;
+    tracking.departmentId = departmentId;
+    tracking.userId = userId;
+    tracking.actionType = 'status-update';
+    tracking.status = trackingStatus; // Store the new orderStatus here
+    tracking.previousStatus = trackingPreviousStatus; // Store the previous orderStatus here
+    tracking.departmentStatus = newOrderStatus; // Also store in departmentStatus for consistency
+    tracking.preparationType = options?.preparationType || orderItem.preparationType || null;
+    tracking.notes = options?.notes || `Order status updated from ${previousOrderStatus || 'null'} to ${newOrderStatus || 'null'}`;
+
+    const savedTracking = await this.trackingRepository.save(tracking);
+    this.logger.log(`[createTrackingRecordForOrderStatusUpdate] Tracking record saved - ID: ${savedTracking.id}, OrderItemId: ${savedTracking.orderItemId}, Status: ${previousOrderStatus || 'null'} → ${newOrderStatus || 'null'}`);
+    
+    return savedTracking;
   }
 
   /**
@@ -210,25 +295,12 @@ export class OrderTrackingService {
       );
     }
 
-    // Create tracking record
+    // Store previous orderStatus to track changes
+    const previousOrderStatus = orderItem.orderStatus;
     const previousStatus = orderItem.currentStatus;
     const initialOrderStatus = checkInDto.orderStatus || null;
     
-    const tracking = this.trackingRepository.create({
-      orderItemId: orderItem.id,
-      departmentId: checkInDto.departmentId,
-      userId: user.id,
-      actionType: 'check-in',
-      status: 'checked-in',
-      previousStatus,
-      preparationType: checkInDto.preparationType || null,
-      departmentStatus: initialOrderStatus,
-      notes: checkInDto.notes,
-    });
-
-    await this.trackingRepository.save(tracking);
-
-    // Update order item status
+    // Update order item status first
     if (orderItem.currentDepartmentId) {
       orderItem.lastDepartmentId = orderItem.currentDepartmentId;
     }
@@ -238,6 +310,55 @@ export class OrderTrackingService {
     orderItem.orderStatus = initialOrderStatus;
     orderItem.handedOverDepartmentId = null;
     await this.orderItemRepository.save(orderItem);
+
+    // Create tracking record - if orderStatus changed, create orderStatus tracking, otherwise create check-in tracking
+    let tracking: OrderItemTracking;
+    if (initialOrderStatus && previousOrderStatus !== initialOrderStatus) {
+      // OrderStatus changed - create orderStatus tracking record
+      const orderStatusTracking = await this.createTrackingRecordForOrderStatusUpdate(
+        orderItem,
+        previousOrderStatus,
+        initialOrderStatus,
+        {
+          userId: user.id,
+          departmentId: checkInDto.departmentId,
+          notes: checkInDto.notes || `Order status updated during check-in`,
+          preparationType: checkInDto.preparationType || null,
+          skipIfNoChange: true,
+        },
+      );
+      // If tracking wasn't created (missing context), fall back to check-in tracking
+      if (orderStatusTracking) {
+        tracking = orderStatusTracking;
+      } else {
+        tracking = this.trackingRepository.create({
+          orderItemId: orderItem.id,
+          departmentId: checkInDto.departmentId,
+          userId: user.id,
+          actionType: 'check-in',
+          status: 'checked-in',
+          previousStatus,
+          preparationType: checkInDto.preparationType || null,
+          departmentStatus: initialOrderStatus,
+          notes: checkInDto.notes,
+        });
+        await this.trackingRepository.save(tracking);
+      }
+    } else {
+      // No orderStatus change - create regular check-in tracking
+      tracking = this.trackingRepository.create({
+        orderItemId: orderItem.id,
+        departmentId: checkInDto.departmentId,
+        userId: user.id,
+        actionType: 'check-in',
+        status: 'checked-in',
+        previousStatus,
+        preparationType: checkInDto.preparationType || null,
+        departmentStatus: initialOrderStatus,
+        notes: checkInDto.notes,
+      });
+      await this.trackingRepository.save(tracking);
+    }
 
     // Load relations for response
     await this.trackingRepository.findOne({
@@ -378,23 +499,11 @@ export class OrderTrackingService {
 
     // All strict validations removed - allow any status update
 
-    // Create tracking record
+    // Store previous orderStatus to track changes
+    const previousOrderStatus = orderItem.orderStatus;
     const previousStatus = orderItem.currentStatus;
-    const tracking = this.trackingRepository.create({
-      orderItemId: orderItem.id,
-      departmentId: updateStatusDto.departmentId,
-      userId: user.id,
-      actionType: 'status-update',
-      status: updateStatusDto.status,
-      previousStatus,
-      preparationType: updateStatusDto.preparationType || null,
-      departmentStatus: updateStatusDto.orderStatus || null,
-      notes: updateStatusDto.notes,
-    });
-
-    await this.trackingRepository.save(tracking);
-
-    // Update order item status
+    
+    // Update order item status first
     orderItem.currentStatus = updateStatusDto.status;
     if (updateStatusDto.status === 'checked-in' || updateStatusDto.status === 'in-progress') {
       orderItem.currentDepartmentId = updateStatusDto.departmentId;
@@ -408,6 +517,55 @@ export class OrderTrackingService {
       orderItem.orderStatus = updateStatusDto.orderStatus;
     }
     await this.orderItemRepository.save(orderItem);
+
+    // Create tracking record - if orderStatus changed, create orderStatus tracking, otherwise create status-update tracking
+    let tracking: OrderItemTracking;
+    if (updateStatusDto.orderStatus && previousOrderStatus !== updateStatusDto.orderStatus) {
+      // OrderStatus changed - create orderStatus tracking record
+      const orderStatusTracking = await this.createTrackingRecordForOrderStatusUpdate(
+        orderItem,
+        previousOrderStatus,
+        updateStatusDto.orderStatus,
+        {
+          userId: user.id,
+          departmentId: updateStatusDto.departmentId,
+          notes: updateStatusDto.notes || `Order status updated: ${previousOrderStatus || 'null'} → ${updateStatusDto.orderStatus}`,
+          preparationType: updateStatusDto.preparationType || null,
+          skipIfNoChange: true,
+        },
+      );
+      // If tracking wasn't created (missing context), fall back to status-update tracking
+      if (orderStatusTracking) {
+        tracking = orderStatusTracking;
+      } else {
+        tracking = this.trackingRepository.create({
+          orderItemId: orderItem.id,
+          departmentId: updateStatusDto.departmentId,
+          userId: user.id,
+          actionType: 'status-update',
+          status: updateStatusDto.status,
+          previousStatus,
+          preparationType: updateStatusDto.preparationType || null,
+          departmentStatus: updateStatusDto.orderStatus || null,
+          notes: updateStatusDto.notes,
+        });
+        await this.trackingRepository.save(tracking);
+      }
+    } else {
+      // No orderStatus change - create regular status-update tracking
+      tracking = this.trackingRepository.create({
+        orderItemId: orderItem.id,
+        departmentId: updateStatusDto.departmentId,
+        userId: user.id,
+        actionType: 'status-update',
+        status: updateStatusDto.status,
+        previousStatus,
+        preparationType: updateStatusDto.preparationType || null,
+        departmentStatus: updateStatusDto.orderStatus || null,
+        notes: updateStatusDto.notes,
+      });
+      await this.trackingRepository.save(tracking);
+    }
 
     // Load relations for response
     await this.trackingRepository.findOne({
@@ -822,6 +980,9 @@ export class OrderTrackingService {
   async customSyncOrderItems(
     customSyncDto: CustomSyncOrderItemsDto,
   ): Promise<{ message: string; synced: number; updated: number }> {
+    // Log API call
+    this.logger.log(`[customSyncOrderItems] API called - Store: ${customSyncDto.storeName}, Items: ${customSyncDto.orderItems.length}, UserId: ${customSyncDto.userId || 'NOT PROVIDED'}, DepartmentId: ${customSyncDto.departmentId || 'NOT PROVIDED'}`);
+
     // Validate visibility status if provided
     if (customSyncDto.visibilityStatus) {
       await this.validateVisibilityStatus(customSyncDto.visibilityStatus);
@@ -841,6 +1002,11 @@ export class OrderTrackingService {
       });
 
       if (existingItem) {
+        // Store previous orderStatus to track changes
+        const previousOrderStatus = existingItem.orderStatus;
+        
+        this.logger.log(`[customSyncOrderItems] Updating existing item - OrderId: ${itemData.externalOrderId}, ItemId: ${itemData.externalItemId}, Previous orderStatus: ${previousOrderStatus || 'null'}, New orderStatus: ${itemData.orderStatus || 'null'}`);
+        
         // Update existing item
         if (itemData.productName !== undefined) {
           existingItem.productName = itemData.productName || null;
@@ -862,6 +1028,36 @@ export class OrderTrackingService {
         }
         
         await this.orderItemRepository.save(existingItem);
+        
+        // Create tracking record if orderStatus changed and we have tracking context
+        if (itemData.orderStatus !== undefined && previousOrderStatus !== existingItem.orderStatus) {
+          this.logger.log(`[customSyncOrderItems] OrderStatus changed detected - Previous: ${previousOrderStatus || 'null'} → New: ${existingItem.orderStatus || 'null'}, UserId: ${customSyncDto.userId || 'MISSING'}, DepartmentId: ${customSyncDto.departmentId || 'MISSING'}`);
+          
+          const trackingRecord = await this.createTrackingRecordForOrderStatusUpdate(
+            existingItem,
+            previousOrderStatus,
+            existingItem.orderStatus,
+            {
+              userId: customSyncDto.userId,
+              departmentId: customSyncDto.departmentId,
+              notes: `Order status updated via sync: ${previousOrderStatus || 'null'} → ${existingItem.orderStatus || 'null'}`,
+              skipIfNoChange: true,
+            },
+          );
+          
+          if (trackingRecord) {
+            this.logger.log(`[customSyncOrderItems] ✅ Tracking record CREATED - ID: ${trackingRecord.id}, OrderItemId: ${trackingRecord.orderItemId}, DepartmentStatus: ${trackingRecord.departmentStatus || 'null'}`);
+          } else {
+            this.logger.warn(`[customSyncOrderItems] ⚠️ Tracking record NOT CREATED - Missing userId or departmentId context`);
+          }
+        } else {
+          if (itemData.orderStatus === undefined) {
+            this.logger.debug(`[customSyncOrderItems] No orderStatus in payload - skipping tracking`);
+          } else if (previousOrderStatus === existingItem.orderStatus) {
+            this.logger.debug(`[customSyncOrderItems] OrderStatus unchanged (${previousOrderStatus || 'null'}) - skipping tracking`);
+          }
+        }
+        
         updatedCount++;
       } else {
         // Create new order item
@@ -895,6 +1091,8 @@ export class OrderTrackingService {
         syncedCount++;
       }
     }
+
+    this.logger.log(`[customSyncOrderItems] ✅ Completed - Synced: ${syncedCount}, Updated: ${updatedCount}`);
 
     return {
       message: 'Order items synced successfully',
