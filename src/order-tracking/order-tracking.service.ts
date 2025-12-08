@@ -300,22 +300,7 @@ export class OrderTrackingService {
     const previousStatus = orderItem.currentStatus;
     const initialOrderStatus = checkInDto.orderStatus || null;
     
-    // Create tracking record for check-in
-    const tracking = this.trackingRepository.create({
-      orderItemId: orderItem.id,
-      departmentId: checkInDto.departmentId,
-      userId: user.id,
-      actionType: 'check-in',
-      status: 'checked-in',
-      previousStatus,
-      preparationType: checkInDto.preparationType || null,
-      departmentStatus: initialOrderStatus,
-      notes: checkInDto.notes,
-    });
-
-    await this.trackingRepository.save(tracking);
-
-    // Update order item status
+    // Update order item status first
     if (orderItem.currentDepartmentId) {
       orderItem.lastDepartmentId = orderItem.currentDepartmentId;
     }
@@ -326,9 +311,11 @@ export class OrderTrackingService {
     orderItem.handedOverDepartmentId = null;
     await this.orderItemRepository.save(orderItem);
 
-    // Create additional tracking record if orderStatus changed separately from check-in
+    // Create tracking record - if orderStatus changed, create orderStatus tracking, otherwise create check-in tracking
+    let tracking: OrderItemTracking;
     if (initialOrderStatus && previousOrderStatus !== initialOrderStatus) {
-      await this.createTrackingRecordForOrderStatusUpdate(
+      // OrderStatus changed - create orderStatus tracking record
+      const orderStatusTracking = await this.createTrackingRecordForOrderStatusUpdate(
         orderItem,
         previousOrderStatus,
         initialOrderStatus,
@@ -340,6 +327,37 @@ export class OrderTrackingService {
           skipIfNoChange: true,
         },
       );
+      // If tracking wasn't created (missing context), fall back to check-in tracking
+      if (orderStatusTracking) {
+        tracking = orderStatusTracking;
+      } else {
+        tracking = this.trackingRepository.create({
+          orderItemId: orderItem.id,
+          departmentId: checkInDto.departmentId,
+          userId: user.id,
+          actionType: 'check-in',
+          status: 'checked-in',
+          previousStatus,
+          preparationType: checkInDto.preparationType || null,
+          departmentStatus: initialOrderStatus,
+          notes: checkInDto.notes,
+        });
+        await this.trackingRepository.save(tracking);
+      }
+    } else {
+      // No orderStatus change - create regular check-in tracking
+      tracking = this.trackingRepository.create({
+        orderItemId: orderItem.id,
+        departmentId: checkInDto.departmentId,
+        userId: user.id,
+        actionType: 'check-in',
+        status: 'checked-in',
+        previousStatus,
+        preparationType: checkInDto.preparationType || null,
+        departmentStatus: initialOrderStatus,
+        notes: checkInDto.notes,
+      });
+      await this.trackingRepository.save(tracking);
     }
 
     // Load relations for response
@@ -485,22 +503,7 @@ export class OrderTrackingService {
     const previousOrderStatus = orderItem.orderStatus;
     const previousStatus = orderItem.currentStatus;
     
-    // Create tracking record
-    const tracking = this.trackingRepository.create({
-      orderItemId: orderItem.id,
-      departmentId: updateStatusDto.departmentId,
-      userId: user.id,
-      actionType: 'status-update',
-      status: updateStatusDto.status,
-      previousStatus,
-      preparationType: updateStatusDto.preparationType || null,
-      departmentStatus: updateStatusDto.orderStatus || null,
-      notes: updateStatusDto.notes,
-    });
-
-    await this.trackingRepository.save(tracking);
-
-    // Update order item status
+    // Update order item status first
     orderItem.currentStatus = updateStatusDto.status;
     if (updateStatusDto.status === 'checked-in' || updateStatusDto.status === 'in-progress') {
       orderItem.currentDepartmentId = updateStatusDto.departmentId;
@@ -515,9 +518,11 @@ export class OrderTrackingService {
     }
     await this.orderItemRepository.save(orderItem);
 
-    // Create additional tracking record if orderStatus changed separately from status update
+    // Create tracking record - if orderStatus changed, create orderStatus tracking, otherwise create status-update tracking
+    let tracking: OrderItemTracking;
     if (updateStatusDto.orderStatus && previousOrderStatus !== updateStatusDto.orderStatus) {
-      await this.createTrackingRecordForOrderStatusUpdate(
+      // OrderStatus changed - create orderStatus tracking record
+      const orderStatusTracking = await this.createTrackingRecordForOrderStatusUpdate(
         orderItem,
         previousOrderStatus,
         updateStatusDto.orderStatus,
@@ -529,6 +534,37 @@ export class OrderTrackingService {
           skipIfNoChange: true,
         },
       );
+      // If tracking wasn't created (missing context), fall back to status-update tracking
+      if (orderStatusTracking) {
+        tracking = orderStatusTracking;
+      } else {
+        tracking = this.trackingRepository.create({
+          orderItemId: orderItem.id,
+          departmentId: updateStatusDto.departmentId,
+          userId: user.id,
+          actionType: 'status-update',
+          status: updateStatusDto.status,
+          previousStatus,
+          preparationType: updateStatusDto.preparationType || null,
+          departmentStatus: updateStatusDto.orderStatus || null,
+          notes: updateStatusDto.notes,
+        });
+        await this.trackingRepository.save(tracking);
+      }
+    } else {
+      // No orderStatus change - create regular status-update tracking
+      tracking = this.trackingRepository.create({
+        orderItemId: orderItem.id,
+        departmentId: updateStatusDto.departmentId,
+        userId: user.id,
+        actionType: 'status-update',
+        status: updateStatusDto.status,
+        previousStatus,
+        preparationType: updateStatusDto.preparationType || null,
+        departmentStatus: updateStatusDto.orderStatus || null,
+        notes: updateStatusDto.notes,
+      });
+      await this.trackingRepository.save(tracking);
     }
 
     // Load relations for response
