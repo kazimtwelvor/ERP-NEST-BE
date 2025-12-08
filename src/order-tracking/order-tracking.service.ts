@@ -140,11 +140,15 @@ export class OrderTrackingService {
       return null;
     }
 
-    // Skip if both are null/undefined
+    // Skip if both are null/undefined (unless this is a new item with initial status)
+    // For new items: previousStatus is null but newStatus exists - allow creation
     if (!previousOrderStatus && !newOrderStatus) {
       this.logger.debug(`[createTrackingRecordForOrderStatusUpdate] Skipping - both statuses are null`);
       return null;
     }
+    
+    // Allow creation for new items (previousStatus is null but newStatus exists)
+    // This handles the case when creating a new order item with an initial orderStatus
 
     // Determine userId and departmentId
     let userId = options?.userId;
@@ -1061,6 +1065,8 @@ export class OrderTrackingService {
         updatedCount++;
       } else {
         // Create new order item
+        this.logger.log(`[customSyncOrderItems] Creating new item - OrderId: ${itemData.externalOrderId}, ItemId: ${itemData.externalItemId}, OrderStatus: ${itemData.orderStatus || 'null'}`);
+        
         const orderItemData: Partial<OrderItem> = {
           externalOrderId: itemData.externalOrderId,
           externalItemId: itemData.externalItemId,
@@ -1087,6 +1093,35 @@ export class OrderTrackingService {
         orderItem.qrCodeUrl = this.generateQRCodeUrl(orderItem.id, customSyncDto.storeName);
         
         await this.orderItemRepository.save(orderItem);
+
+        // Create tracking record if orderStatus is provided for new item
+        if (itemData.orderStatus && customSyncDto.userId && customSyncDto.departmentId) {
+          this.logger.log(`[customSyncOrderItems] Creating initial tracking for new item - OrderStatus: ${itemData.orderStatus}, UserId: ${customSyncDto.userId}, DepartmentId: ${customSyncDto.departmentId}`);
+          
+          const trackingRecord = await this.createTrackingRecordForOrderStatusUpdate(
+            orderItem,
+            null, // Previous status is null for new items
+            itemData.orderStatus,
+            {
+              userId: customSyncDto.userId,
+              departmentId: customSyncDto.departmentId,
+              notes: `Order item created with status: ${itemData.orderStatus}`,
+              preparationType: null,
+            },
+          );
+          
+          if (trackingRecord) {
+            this.logger.log(`[customSyncOrderItems] ✅ Initial tracking record CREATED for new item - ID: ${trackingRecord.id}, OrderItemId: ${trackingRecord.orderItemId}, DepartmentStatus: ${trackingRecord.departmentStatus || 'null'}`);
+          } else {
+            this.logger.warn(`[customSyncOrderItems] ⚠️ Initial tracking record NOT CREATED for new item - Missing context`);
+          }
+        } else {
+          if (!itemData.orderStatus) {
+            this.logger.debug(`[customSyncOrderItems] No orderStatus provided for new item - skipping initial tracking`);
+          } else {
+            this.logger.debug(`[customSyncOrderItems] Missing userId or departmentId for new item tracking - UserId: ${customSyncDto.userId || 'MISSING'}, DepartmentId: ${customSyncDto.departmentId || 'MISSING'}`);
+          }
+        }
 
         syncedCount++;
       }
