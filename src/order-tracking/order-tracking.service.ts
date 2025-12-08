@@ -177,22 +177,22 @@ export class OrderTrackingService {
       return null;
     }
 
-    // Determine the appropriate status for tracking
-    // Use currentStatus if available, otherwise default to 'in-progress' for status updates
-    const trackingStatus = orderItem.currentStatus || 'in-progress';
+    // Store orderStatus in status field, and previous orderStatus in previousStatus field
+    // This allows tracking the actual orderStatus changes (cutting_in_progress, stitching_in_progress, etc.)
+    const trackingStatus = newOrderStatus || orderItem.currentStatus || 'in-progress';
+    const trackingPreviousStatus = previousOrderStatus || orderItem.currentStatus || null;
 
-    // Create tracking record
-    const tracking = this.trackingRepository.create({
-      orderItemId: orderItem.id,
-      departmentId,
-      userId,
-      actionType: 'status-update',
-      status: trackingStatus,
-      previousStatus: orderItem.currentStatus,
-      departmentStatus: newOrderStatus,
-      preparationType: options?.preparationType || orderItem.preparationType || null,
-      notes: options?.notes || `Order status updated from ${previousOrderStatus || 'null'} to ${newOrderStatus || 'null'}`,
-    });
+    // Create tracking record - store orderStatus in status field
+    const tracking = new OrderItemTracking();
+    tracking.orderItemId = orderItem.id;
+    tracking.departmentId = departmentId;
+    tracking.userId = userId;
+    tracking.actionType = 'status-update';
+    tracking.status = trackingStatus; // Store the new orderStatus here
+    tracking.previousStatus = trackingPreviousStatus; // Store the previous orderStatus here
+    tracking.departmentStatus = newOrderStatus; // Also store in departmentStatus for consistency
+    tracking.preparationType = options?.preparationType || orderItem.preparationType || null;
+    tracking.notes = options?.notes || `Order status updated from ${previousOrderStatus || 'null'} to ${newOrderStatus || 'null'}`;
 
     const savedTracking = await this.trackingRepository.save(tracking);
     this.logger.log(`[createTrackingRecordForOrderStatusUpdate] Tracking record saved - ID: ${savedTracking.id}, OrderItemId: ${savedTracking.orderItemId}, Status: ${previousOrderStatus || 'null'} → ${newOrderStatus || 'null'}`);
