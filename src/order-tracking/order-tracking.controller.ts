@@ -29,6 +29,9 @@ import { ReturnToStageDto } from './dto/return-to-stage.dto';
 import { OrderItem } from './entities/order-item.entity';
 import { OrderItemTracking } from './entities/order-item-tracking.entity';
 import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
+import { Permissions } from '../common/decorators/permissions.decorator';
+import { AccessPermissions } from '../common/enums/access-permissions.enum';
+import { ORDER_TRACKING_MESSAGES } from './messages/order-tracking.messages';
 
 @ApiTags('Order Tracking')
 @ApiBearerAuth()
@@ -37,11 +40,12 @@ export class OrderTrackingController {
   constructor(private readonly orderTrackingService: OrderTrackingService) {}
 
   @Post('sync-orders')
+  @Permissions(AccessPermissions.CreateOrder)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Sync orders from external store APIs' })
   @ApiResponse({
     status: 200,
-    description: 'Orders synced successfully',
+    description: ORDER_TRACKING_MESSAGES.ORDERS_SYNCED,
   })
   @ApiResponse({
     status: 400,
@@ -52,6 +56,7 @@ export class OrderTrackingController {
   }
 
   @Post('custom-sync-order')
+  @Permissions(AccessPermissions.CreateOrder)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Custom sync individual or multiple order items directly to database' })
   @ApiResponse({
@@ -75,22 +80,25 @@ export class OrderTrackingController {
   }
 
   @Post('generate-qr/:orderItemId')
+  @Permissions(AccessPermissions.UpdateOrder)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Generate QR code for an order item' })
   @ApiParam({ name: 'orderItemId', description: 'Order item ID (UUID)' })
   @ApiResponse({
     status: 200,
-    description: 'QR code generated successfully',
+    description: ORDER_TRACKING_MESSAGES.QR_CODE_GENERATED,
   })
   @ApiResponse({
     status: 404,
-    description: 'Order item not found',
+    description: ORDER_TRACKING_MESSAGES.ORDER_ITEM_NOT_FOUND,
   })
   async generateQRCode(@Param('orderItemId') orderItemId: string) {
     return this.orderTrackingService.generateQRCode(orderItemId);
   }
 
   @Get('order-item/qr/:qrCode')
+  @Permissions(AccessPermissions.ReadOrder)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get order item by QR code with optional visibility filtering' })
   @ApiParam({ name: 'qrCode', description: 'QR code of the order item' })
   @ApiQuery({ name: 'roleId', required: false, description: 'Role ID for visibility check' })
@@ -99,12 +107,12 @@ export class OrderTrackingController {
   @ApiQuery({ name: 'roleNames', required: false, description: 'Array of role names for visibility check', type: [String] })
   @ApiResponse({
     status: 200,
-    description: 'Order item retrieved successfully',
+    description: ORDER_TRACKING_MESSAGES.ORDER_ITEM_FETCHED,
     type: OrderItem,
   })
   @ApiResponse({
     status: 404,
-    description: 'QR code not found or access denied',
+    description: ORDER_TRACKING_MESSAGES.QR_CODE_NOT_FOUND,
   })
   async getOrderItemByQRCode(
     @Param('qrCode') qrCode: string,
@@ -117,78 +125,82 @@ export class OrderTrackingController {
   }
 
   @Post('check-in')
+  @Permissions(AccessPermissions.UpdateOrder)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Check in order item to a department' })
   @ApiResponse({
     status: 200,
-    description: 'Order item checked in successfully',
+    description: ORDER_TRACKING_MESSAGES.CHECKED_IN,
     type: OrderItemTracking,
   })
   @ApiResponse({
     status: 404,
-    description: 'Order item, department, or user not found',
+    description: ORDER_TRACKING_MESSAGES.ORDER_ITEM_NOT_FOUND,
   })
   @ApiResponse({
     status: 400,
-    description: 'Order item already checked in or invalid request',
+    description: ORDER_TRACKING_MESSAGES.ALREADY_CHECKED_IN,
   })
   @ApiResponse({
     status: 401,
-    description: 'Invalid password',
+    description: ORDER_TRACKING_MESSAGES.INVALID_PASSWORD,
   })
   async checkIn(@Body() checkInDto: CheckInOrderItemDto) {
     return this.orderTrackingService.checkIn(checkInDto);
   }
 
   @Post('check-out')
+  @Permissions(AccessPermissions.UpdateOrder)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Check out order item from a department' })
   @ApiResponse({
     status: 200,
-    description: 'Order item checked out successfully',
+    description: ORDER_TRACKING_MESSAGES.CHECKED_OUT,
     type: OrderItemTracking,
   })
   @ApiResponse({
     status: 404,
-    description: 'Order item, department, or user not found',
+    description: ORDER_TRACKING_MESSAGES.ORDER_ITEM_NOT_FOUND,
   })
   @ApiResponse({
     status: 400,
-    description: 'Order item not checked in or invalid request',
+    description: ORDER_TRACKING_MESSAGES.NOT_CHECKED_IN,
   })
   @ApiResponse({
     status: 401,
-    description: 'Invalid password',
+    description: ORDER_TRACKING_MESSAGES.INVALID_PASSWORD,
   })
   async checkOut(@Body() checkOutDto: CheckOutOrderItemDto) {
     return this.orderTrackingService.checkOut(checkOutDto);
   }
 
   @Post('update-status')
+  @Permissions(AccessPermissions.UpdateOrder)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Update order item status (e.g., to in-progress)' })
   @ApiResponse({
     status: 200,
-    description: 'Order item status updated successfully',
+    description: ORDER_TRACKING_MESSAGES.STATUS_UPDATED,
     type: OrderItemTracking,
   })
   @ApiResponse({
     status: 404,
-    description: 'Order item, department, or user not found',
+    description: ORDER_TRACKING_MESSAGES.ORDER_ITEM_NOT_FOUND,
   })
   @ApiResponse({
     status: 400,
-    description: 'Invalid status transition',
+    description: ORDER_TRACKING_MESSAGES.INVALID_STATUS_TRANSITION,
   })
   @ApiResponse({
     status: 401,
-    description: 'Invalid password',
+    description: ORDER_TRACKING_MESSAGES.INVALID_PASSWORD,
   })
   async updateStatus(@Body() updateStatusDto: UpdateStatusDto) {
     return this.orderTrackingService.updateStatus(updateStatusDto);
   }
 
   @Post('return-to-stage')
+  @Permissions(AccessPermissions.UpdateOrder)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Return order item to a previous stage (e.g., after quality control failure)' })
   @ApiResponse({
@@ -198,7 +210,7 @@ export class OrderTrackingController {
   })
   @ApiResponse({
     status: 404,
-    description: 'Order item, department, or user not found',
+    description: ORDER_TRACKING_MESSAGES.ORDER_ITEM_NOT_FOUND,
   })
   @ApiResponse({
     status: 400,
@@ -206,13 +218,15 @@ export class OrderTrackingController {
   })
   @ApiResponse({
     status: 401,
-    description: 'Invalid password',
+    description: ORDER_TRACKING_MESSAGES.INVALID_PASSWORD,
   })
   async returnToStage(@Body() returnToStageDto: ReturnToStageDto) {
     return this.orderTrackingService.returnToStage(returnToStageDto);
   }
 
   @Get('order-items')
+  @Permissions(AccessPermissions.ReadOrder)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get all order items with optional filtering and visibility checks' })
   @ApiResponse({
     status: 200,
@@ -238,10 +252,12 @@ export class OrderTrackingController {
   }
 
   @Get('tracking-history')
+  @Permissions(AccessPermissions.ReadOrder)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get tracking history for order items with optional visibility filtering' })
   @ApiResponse({
     status: 200,
-    description: 'Tracking history retrieved successfully',
+    description: ORDER_TRACKING_MESSAGES.TRACKING_HISTORY_FETCHED,
     schema: {
       type: 'object',
       properties: {
@@ -263,22 +279,23 @@ export class OrderTrackingController {
   }
 
   @Delete('order-item/:orderItemId')
+  @Permissions(AccessPermissions.DeleteOrder)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Delete an order item by ID' })
   @ApiParam({ name: 'orderItemId', description: 'Order item ID (UUID)' })
   @ApiResponse({
     status: 200,
-    description: 'Order item deleted successfully',
+    description: ORDER_TRACKING_MESSAGES.ORDER_ITEM_DELETED,
     schema: {
       type: 'object',
       properties: {
-        message: { type: 'string', example: 'Order item deleted successfully' },
+        message: { type: 'string', example: ORDER_TRACKING_MESSAGES.ORDER_ITEM_DELETED },
       },
     },
   })
   @ApiResponse({
     status: 404,
-    description: 'Order item not found',
+    description: ORDER_TRACKING_MESSAGES.ORDER_ITEM_NOT_FOUND,
   })
   async deleteOrderItem(@Param('orderItemId') orderItemId: string) {
     return this.orderTrackingService.deleteOrderItem(orderItemId);

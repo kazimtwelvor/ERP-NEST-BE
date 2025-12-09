@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -12,6 +13,7 @@ import { DepartmentModule } from './department/department.module';
 import configuration from './config/configuration';
 import { AuthModule } from './auth/auth.module';
 import { OrderTrackingModule } from './order-tracking/order-tracking.module';
+import { PermissionsGuard } from './auth/guards/permissions.guard';
 
 
 
@@ -41,7 +43,13 @@ import { OrderTrackingModule } from './order-tracking/order-tracking.module';
     OrderTrackingModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: PermissionsGuard,
+    },
+  ],
 })
 export class AppModule {}
   
