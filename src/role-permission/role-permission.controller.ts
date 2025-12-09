@@ -61,7 +61,7 @@ export class RolePermissionController {
   }
 
   @Get('roles')
-  @Permissions(AccessPermissions.ReadRolePermission)
+  // @Permissions(AccessPermissions.ReadRolePermission)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get all roles' })
   @ApiResponse({
@@ -231,7 +231,7 @@ export class RolePermissionController {
   }
 
   @Get('roles/:id/order-statuses')
-  @Permissions(AccessPermissions.ReadRolePermission)
+  // @Permissions(AccessPermissions.ReadRolePermission)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get all order statuses for a role' })
   @ApiParam({ name: 'id', description: 'Role ID (UUID)' })
@@ -258,7 +258,7 @@ export class RolePermissionController {
   }
 
   @Patch('roles/:id/order-statuses/:status')
-  @Permissions(AccessPermissions.UpdateRolePermission)
+  // @Permissions(AccessPermissions.UpdateRolePermission)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Update a specific order status' })
   @ApiParam({ name: 'id', description: 'Role ID (UUID)' })
@@ -332,7 +332,7 @@ export class RolePermissionController {
   // ========== Role Visibility Management Endpoints ==========
 
   @Post('roles/:id/role-visibilities')
-  @Permissions(AccessPermissions.UpdateRolePermission)
+  // @Permissions(AccessPermissions.UpdateRolePermission)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Assign role visibilities to a role' })
   @ApiParam({ name: 'id', description: 'Role ID (UUID)' })
@@ -353,7 +353,7 @@ export class RolePermissionController {
   }
 
   @Get('roles/:id/role-visibilities')
-  @Permissions(AccessPermissions.ReadRolePermission)
+  // @Permissions(AccessPermissions.ReadRolePermission)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get all role visibilities for a role' })
   @ApiParam({ name: 'id', description: 'Role ID (UUID)' })
@@ -380,7 +380,7 @@ export class RolePermissionController {
   }
 
   @Patch('roles/:id/role-visibilities/:visibleRoleId')
-  @Permissions(AccessPermissions.UpdateRolePermission)
+  // @Permissions(AccessPermissions.UpdateRolePermission)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Update a specific role visibility' })
   @ApiParam({ name: 'id', description: 'Role ID (UUID)' })
