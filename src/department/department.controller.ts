@@ -23,6 +23,9 @@ import { UpdateDepartmentDto } from './dto/update-department.dto';
 import { GetDepartmentsDto } from './dto/get-departments.dto';
 import { Department } from './entities/department.entity';
 import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
+import { Permissions } from '../common/decorators/permissions.decorator';
+import { AccessPermissions } from '../common/enums/access-permissions.enum';
+import { DEPARTMENT_MESSAGES } from './messages/department.messages';
 
 @ApiTags('Departments')
 @ApiBearerAuth()
@@ -31,16 +34,17 @@ export class DepartmentController {
   constructor(private readonly departmentService: DepartmentService) {}
 
   @Post()
+  @Permissions(AccessPermissions.CreateDepartment)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new department' })
   @ApiResponse({
     status: 201,
-    description: 'Department created successfully',
+    description: DEPARTMENT_MESSAGES.CREATED,
     type: Department,
   })
   @ApiResponse({
     status: 409,
-    description: 'Department with this name or code already exists',
+    description: DEPARTMENT_MESSAGES.ALREADY_EXISTS,
   })
   @ApiResponse({
     status: 400,
@@ -51,10 +55,12 @@ export class DepartmentController {
   }
 
   @Get()
+  @Permissions(AccessPermissions.ReadDepartment)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get all departments with pagination and search' })
   @ApiResponse({
     status: 200,
-    description: 'List of departments retrieved successfully',
+    description: DEPARTMENT_MESSAGES.LIST_FETCHED,
     schema: {
       type: 'object',
       properties: {
@@ -76,56 +82,61 @@ export class DepartmentController {
   }
 
   @Get(':id')
+  @Permissions(AccessPermissions.ReadDepartment)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get a department by ID' })
   @ApiParam({ name: 'id', description: 'Department ID (UUID)' })
   @ApiResponse({
     status: 200,
-    description: 'Department retrieved successfully',
+    description: DEPARTMENT_MESSAGES.FETCHED,
     type: Department,
   })
   @ApiResponse({
     status: 404,
-    description: 'Department not found',
+    description: DEPARTMENT_MESSAGES.NOT_FOUND,
   })
   async findOne(@Param('id') id: string) {
     return this.departmentService.findOne(id);
   }
 
   @Patch(':id')
+  @Permissions(AccessPermissions.UpdateDepartment)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Update a department' })
   @ApiParam({ name: 'id', description: 'Department ID (UUID)' })
   @ApiResponse({
     status: 200,
-    description: 'Department updated successfully',
+    description: DEPARTMENT_MESSAGES.UPDATED,
     type: Department,
   })
   @ApiResponse({
     status: 404,
-    description: 'Department not found',
+    description: DEPARTMENT_MESSAGES.NOT_FOUND,
   })
   @ApiResponse({
     status: 409,
-    description: 'Department with this name or code already exists',
+    description: DEPARTMENT_MESSAGES.ALREADY_EXISTS,
   })
   async update(@Param('id') id: string, @Body() updateDepartmentDto: UpdateDepartmentDto) {
     return this.departmentService.update(id, updateDepartmentDto);
   }
 
   @Delete(':id')
+  @Permissions(AccessPermissions.DeleteDepartment)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Delete a department' })
   @ApiParam({ name: 'id', description: 'Department ID (UUID)' })
   @ApiResponse({
     status: 200,
-    description: 'Department deleted successfully',
+    description: DEPARTMENT_MESSAGES.DELETED,
   })
   @ApiResponse({
     status: 404,
-    description: 'Department not found',
+    description: DEPARTMENT_MESSAGES.NOT_FOUND,
   })
   @ApiResponse({
     status: 400,
-    description: 'Cannot delete department that has assigned users',
+    description: DEPARTMENT_MESSAGES.HAS_USERS,
   })
   async remove(@Param('id') id: string) {
     return this.departmentService.remove(id);
