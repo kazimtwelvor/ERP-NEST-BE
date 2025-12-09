@@ -56,7 +56,7 @@ export class OrderTrackingController {
   }
 
   @Post('custom-sync-order')
-  @Permissions(AccessPermissions.CreateOrder)
+  // @Permissions(AccessPermissions.CreateOrder)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Custom sync individual or multiple order items directly to database' })
   @ApiResponse({

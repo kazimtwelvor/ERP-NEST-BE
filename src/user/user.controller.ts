@@ -91,7 +91,6 @@ export class UserController {
   }
 
   @Get(':id')
-  @Permissions(AccessPermissions.ReadUser)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get a user by ID' })
   @ApiParam({ name: 'id', description: 'User ID (UUID)' })
