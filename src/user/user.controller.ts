@@ -25,6 +25,9 @@ import { VerifyEmailDto, ResendVerificationDto } from './dto/verify-email.dto';
 import { GetUsersDto } from './dto/get-users.dto';
 import { User } from './entities/user.entity';
 import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
+import { Permissions } from '../common/decorators/permissions.decorator';
+import { AccessPermissions } from '../common/enums/access-permissions.enum';
+import { USER_MESSAGES } from './messages/user.messages';
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -33,6 +36,7 @@ export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Post()
+  @Permissions(AccessPermissions.CreateUser)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new user' })
   @ApiResponse({
@@ -65,10 +69,12 @@ export class UserController {
   }
 
   @Get()
+  @Permissions(AccessPermissions.ReadUser)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get all users with pagination and search' })
   @ApiResponse({
     status: 200,
-    description: 'List of users retrieved successfully',
+    description: USER_MESSAGES.LIST_FETCHED,
     schema: {
       type: 'object',
       properties: {
@@ -85,11 +91,13 @@ export class UserController {
   }
 
   @Get(':id')
+  @Permissions(AccessPermissions.ReadUser)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get a user by ID' })
   @ApiParam({ name: 'id', description: 'User ID (UUID)' })
   @ApiResponse({
     status: 200,
-    description: 'User retrieved successfully',
+    description: USER_MESSAGES.FETCHED,
     type: User,
   })
   @ApiResponse({
@@ -101,11 +109,13 @@ export class UserController {
   }
 
   @Patch(':id')
+  @Permissions(AccessPermissions.UpdateUser)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Update a user' })
   @ApiParam({ name: 'id', description: 'User ID (UUID)' })
   @ApiResponse({
     status: 200,
-    description: 'User updated successfully',
+    description: USER_MESSAGES.UPDATED,
     type: User,
   })
   @ApiResponse({
@@ -121,12 +131,13 @@ export class UserController {
   }
 
   @Delete(':id')
+  @Permissions(AccessPermissions.DeleteUser)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Delete a user' })
   @ApiParam({ name: 'id', description: 'User ID (UUID)' })
   @ApiResponse({
     status: 200,
-    description: 'User deleted successfully',
+    description: USER_MESSAGES.DELETED,
   })
   @ApiResponse({
     status: 404,
