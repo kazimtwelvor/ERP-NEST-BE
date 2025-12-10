@@ -844,6 +844,10 @@ export class OrderTrackingService {
             // Update existing item
             existingItem.productName = item.productName || item.product?.name || null;
             existingItem.sku = item.sku || item.product?.sku || null;
+            existingItem.color = item.color || item.product?.color || '';
+            existingItem.size = item.size || item.product?.size || '';
+            existingItem.gender = item.gender || item.product?.gender || '';
+            existingItem.productImage = item.productImage || item.product?.productImage || item.product?.image || '';
             existingItem.quantity = item.quantity || 1;
             existingItem.isLeather = item.isLeather || item.product?.isLeather || false;
             existingItem.isPattern = item.isPattern || item.product?.isPattern || false;
@@ -856,6 +860,10 @@ export class OrderTrackingService {
               storeName,
               productName: item.productName || item.product?.name || null,
               sku: item.sku || item.product?.sku || null,
+              color: item.color || item.product?.color || '',
+              size: item.size || item.product?.size || '',
+              gender: item.gender || item.product?.gender || '',
+              productImage: item.productImage || item.product?.productImage || item.product?.image || '',
               quantity: item.quantity || 1,
               isLeather: item.isLeather || item.product?.isLeather || false,
               isPattern: item.isPattern || item.product?.isPattern || false,
@@ -1019,6 +1027,18 @@ export class OrderTrackingService {
         if (itemData.sku !== undefined) {
           existingItem.sku = itemData.sku || null;
         }
+        if (itemData.color !== undefined) {
+          existingItem.color = itemData.color;
+        }
+        if (itemData.size !== undefined) {
+          existingItem.size = itemData.size;
+        }
+        if (itemData.gender !== undefined) {
+          existingItem.gender = itemData.gender;
+        }
+        if (itemData.productImage !== undefined) {
+          existingItem.productImage = itemData.productImage;
+        }
         existingItem.quantity = itemData.quantity || 1;
         existingItem.isLeather = itemData.isLeather ?? false;
         existingItem.isPattern = itemData.isPattern ?? false;
@@ -1074,6 +1094,10 @@ export class OrderTrackingService {
           storeName: customSyncDto.storeName,
           productName: itemData.productName ?? null,
           sku: itemData.sku ?? null,
+          color: itemData.color,
+          size: itemData.size,
+          gender: itemData.gender,
+          productImage: itemData.productImage,
           quantity: itemData.quantity || 1,
           isLeather: itemData.isLeather ?? false,
           isPattern: itemData.isPattern ?? false,
