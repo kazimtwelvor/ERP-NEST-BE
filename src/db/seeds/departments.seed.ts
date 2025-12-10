@@ -6,6 +6,54 @@ export const departmentsSeed = async (dataSource: DataSource): Promise<void> => 
 
   const departments = [
     {
+      name: 'Inventory',
+      code: 'INV',
+      description: 'Leather inventory management and availability tracking',
+      status: 'active',
+    },
+    {
+      name: 'Cutting',
+      code: 'CUT',
+      description: 'Leather cutting and preparation department',
+      status: 'active',
+    },
+    {
+      name: 'Embroidery',
+      code: 'EMB',
+      description: 'Embroidery and design application department',
+      status: 'active',
+    },
+    {
+      name: 'Rivets',
+      code: 'RIV',
+      description: 'Rivets installation and hardware attachment department',
+      status: 'active',
+    },
+    {
+      name: 'Stitching',
+      code: 'STI',
+      description: 'Stitching and assembly department',
+      status: 'active',
+    },
+    {
+      name: 'Packing',
+      code: 'PAC',
+      description: 'Packing and packaging department',
+      status: 'active',
+    },
+    {
+      name: 'Quality Control',
+      code: 'QC',
+      description: 'Quality control inspection and testing department',
+      status: 'active',
+    },
+    {
+      name: 'Logistics',
+      code: 'LOG',
+      description: 'Shipping, transportation, and customs clearance department',
+      status: 'active',
+    },
+    {
       name: 'Finance & Accounting',
       code: 'FIN',
       description: 'Financial management, accounting, and budget control',

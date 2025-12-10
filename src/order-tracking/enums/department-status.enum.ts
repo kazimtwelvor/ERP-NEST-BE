@@ -5,8 +5,6 @@ export enum DepartmentStatus {
   LEATHER_OUT_OF_STOCK = 'leather_out_of_stock',
 
   CUTTING_IN_PROGRESS = 'cutting_in_progress',
-  CUTTING_PENDING_APPROVAL = 'cutting_pending_approval',
-  CUTTING_APPROVED = 'cutting_approved',
   CUTTING_COMPLETED = 'cutting_completed',
 
   EMBROIDERY_IN_PROGRESS = 'embroidery_in_progress',
@@ -44,8 +42,6 @@ export const DepartmentStatusMap: Record<string, DepartmentStatus[]> = {
   ],
   'cutting': [
     DepartmentStatus.CUTTING_IN_PROGRESS,
-    DepartmentStatus.CUTTING_PENDING_APPROVAL,
-    DepartmentStatus.CUTTING_APPROVED,
     DepartmentStatus.CUTTING_COMPLETED,
   ],
   'embroidery': [
@@ -90,12 +86,7 @@ export const StatusTransitions: Record<DepartmentStatus, DepartmentStatus[]> = {
   [DepartmentStatus.LEATHER_OUT_OF_STOCK]: [], // End state - order held
 
   // Cutting
-  [DepartmentStatus.CUTTING_IN_PROGRESS]: [DepartmentStatus.CUTTING_PENDING_APPROVAL],
-  [DepartmentStatus.CUTTING_PENDING_APPROVAL]: [
-    DepartmentStatus.CUTTING_APPROVED,
-    DepartmentStatus.CUTTING_IN_PROGRESS, // Return if rejected
-  ],
-  [DepartmentStatus.CUTTING_APPROVED]: [DepartmentStatus.EMBROIDERY_IN_PROGRESS],
+  [DepartmentStatus.CUTTING_IN_PROGRESS]: [DepartmentStatus.CUTTING_COMPLETED],
   [DepartmentStatus.CUTTING_COMPLETED]: [DepartmentStatus.EMBROIDERY_IN_PROGRESS],
 
   // Embroidery
