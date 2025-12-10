@@ -36,21 +36,21 @@ export class OrderItem {
   @Column({ type: 'varchar', nullable: true })
   sku: string | null;
 
-  @ApiProperty({ description: 'Product color', example: 'Black' })
-  @Column({ type: 'varchar' })
-  color: string;
+  @ApiProperty({ description: 'Product color', example: 'Black', nullable: true })
+  @Column({ type: 'varchar', nullable: true })
+  color: string | null;
 
-  @ApiProperty({ description: 'Product size', example: 'M' })
-  @Column({ type: 'varchar' })
-  size: string;
+  @ApiProperty({ description: 'Product size', example: 'M', nullable: true })
+  @Column({ type: 'varchar', nullable: true })
+  size: string | null;
 
-  @ApiProperty({ description: 'Product gender', example: 'Male' })
-  @Column({ type: 'varchar' })
-  gender: string;
+  @ApiProperty({ description: 'Product gender', example: 'Male', nullable: true })
+  @Column({ type: 'varchar', nullable: true })
+  gender: string | null;
 
-  @ApiProperty({ description: 'Product image URL', example: 'https://example.com/image.jpg' })
-  @Column({ name: 'product_image', type: 'varchar' })
-  productImage: string;
+  @ApiProperty({ description: 'Product image URL', example: 'https://example.com/image.jpg', nullable: true })
+  @Column({ name: 'product_image', type: 'varchar', nullable: true })
+  productImage: string | null;
 
   @ApiProperty({ description: 'Quantity', example: 2 })
   @Column({ type: 'int' })
