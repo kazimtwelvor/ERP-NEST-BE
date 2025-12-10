@@ -23,6 +23,7 @@ import { CheckOutOrderItemDto } from './dto/check-out-order-item.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { GetTrackingHistoryDto } from './dto/get-tracking-history.dto';
 import { GetOrderItemsDto } from './dto/get-order-items.dto';
+import { GetOrderItemStatusesDto } from './dto/get-order-item-statuses.dto';
 import { SyncOrdersDto, StoreName } from './dto/sync-orders.dto';
 import { ReturnToStageDto } from './dto/return-to-stage.dto';
 import { CustomSyncOrderItemsDto } from './dto/custom-sync-order-items.dto';
@@ -1204,6 +1205,155 @@ export class OrderTrackingService {
       total: filteredTotal,
       lastPage,
     };
+  }
+
+  /**
+   * Get all order statuses for a specific order item or by external order ID
+   * Returns all tracking records with status updates for the order item(s)
+   */
+  async getOrderItemStatuses(
+    getStatusesDto: GetOrderItemStatusesDto,
+  ): Promise<{
+    message: string;
+    data: OrderItemTracking[];
+    orderItem?: OrderItem;
+    orderItems?: OrderItem[];
+  }> {
+    const { orderItemId, externalOrderId } = getStatusesDto;
+
+    // Validate that at least one identifier is provided
+    if (!orderItemId && !externalOrderId) {
+      throw new BadRequestException(
+        'Either orderItemId or externalOrderId must be provided',
+      );
+    }
+
+    let orderItemIds: string[] = [];
+
+    if (orderItemId) {
+      // Single order item by ID
+      const orderItem = await this.orderItemRepository.findOne({
+        where: { id: orderItemId },
+      });
+
+      if (!orderItem) {
+        throw new NotFoundException(ORDER_TRACKING_MESSAGES.ORDER_ITEM_NOT_FOUND);
+      }
+
+      orderItemIds = [orderItem.id];
+
+      // Fetch all tracking records for this order item
+      const trackingRecords = await this.trackingRepository.find({
+        where: { orderItemId: orderItem.id },
+        relations: ['orderItem', 'department', 'user'],
+        order: { createdAt: 'ASC' }, // Order by creation time to show progression
+        select: {
+          id: true,
+          orderItemId: true,
+          departmentId: true,
+          userId: true,
+          actionType: true,
+          status: true,
+          departmentStatus: true,
+          previousStatus: true,
+          preparationType: true,
+          notes: true,
+          createdAt: true,
+          orderItem: {
+            id: true,
+            externalOrderId: true,
+            externalItemId: true,
+            storeName: true,
+            productName: true,
+            sku: true,
+            quantity: true,
+            currentStatus: true,
+            orderStatus: true,
+          },
+          department: {
+            id: true,
+            name: true,
+            code: true,
+          },
+          user: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      });
+
+      return {
+        message: 'Order item statuses retrieved successfully',
+        data: trackingRecords,
+        orderItem,
+      };
+    } else if (externalOrderId) {
+      // Multiple order items by external order ID
+      const orderItems = await this.orderItemRepository.find({
+        where: { externalOrderId },
+      });
+
+      if (!orderItems || orderItems.length === 0) {
+        throw new NotFoundException(
+          `No order items found with external order ID: ${externalOrderId}`,
+        );
+      }
+
+      orderItemIds = orderItems.map((item) => item.id);
+
+      // Fetch all tracking records for all order items with this external order ID
+      const trackingRecords = await this.trackingRepository.find({
+        where: { orderItemId: In(orderItemIds) },
+        relations: ['orderItem', 'department', 'user'],
+        order: { createdAt: 'ASC' }, // Order by creation time to show progression
+        select: {
+          id: true,
+          orderItemId: true,
+          departmentId: true,
+          userId: true,
+          actionType: true,
+          status: true,
+          departmentStatus: true,
+          previousStatus: true,
+          preparationType: true,
+          notes: true,
+          createdAt: true,
+          orderItem: {
+            id: true,
+            externalOrderId: true,
+            externalItemId: true,
+            storeName: true,
+            productName: true,
+            sku: true,
+            quantity: true,
+            currentStatus: true,
+            orderStatus: true,
+          },
+          department: {
+            id: true,
+            name: true,
+            code: true,
+          },
+          user: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      });
+
+      return {
+        message: 'Order item statuses retrieved successfully',
+        data: trackingRecords,
+        orderItems,
+      };
+    }
+
+    // This should never be reached due to validation above
+    throw new BadRequestException('Invalid request parameters');
   }
 
   /**
