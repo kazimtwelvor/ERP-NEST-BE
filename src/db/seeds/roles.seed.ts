@@ -30,14 +30,6 @@ export const rolesSeed = async (dataSource: DataSource): Promise<void> => {
       isSystem: true,
       permissions: rolePermissionsMap.admin,
     },
-    {
-      name: 'employee',
-      displayName: 'Employee',
-      description: 'Standard employee access with limited permissions',
-      status: 'active',
-      isSystem: true,
-      permissions: rolePermissionsMap.employee,
-    },
   ];
 
   for (const roleData of roles) {

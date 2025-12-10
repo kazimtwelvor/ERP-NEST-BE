@@ -10,9 +10,15 @@ async function resetDatabase() {
     await dataSource.dropDatabase();
     console.log('✓ All tables dropped\n');
 
-    console.log('📦 Synchronizing schema...');
-    await dataSource.synchronize(true);
-    console.log('✓ Schema synchronized\n');
+    console.log('📦 Running migrations...');
+    await dataSource.runMigrations();
+    console.log('✓ Migrations completed\n');
+
+    console.log('🌱 Running seeds...');
+    // Import and run seeds
+    const { runSeeds } = require('../src/db/seeds/index');
+    await runSeeds(dataSource);
+    console.log('✓ Seeds completed\n');
 
     console.log('✅ Database reset completed successfully!');
   } catch (error) {
