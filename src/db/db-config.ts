@@ -23,6 +23,10 @@ export const getDatabaseConfig = (
     'DB_SSL_REJECT_UNAUTHORIZED',
   );
 
+  // Determine SSL configuration - only enable if explicitly set to 'true' or in production
+  // For local development, SSL should be disabled
+  const enableSsl = (isProduction || dbSsl === 'true') && !isDevelopment;
+
   return {
     type: 'postgres',
     host: configService.get<string>('DB_HOST', 'localhost'),
@@ -37,13 +41,12 @@ export const getDatabaseConfig = (
         : isDevelopment,
     logging:
       dbLogging !== undefined ? dbLogging === 'true' : isDevelopment,
-    ssl:
-      isProduction || dbSsl === 'true'
-        ? {
-            rejectUnauthorized:
-              dbSslRejectUnauthorized === 'true' ? true : false,
-          }
-        : false,
+    ssl: enableSsl
+      ? {
+          rejectUnauthorized:
+            dbSslRejectUnauthorized === 'true' ? true : false,
+        }
+      : false, // Explicitly disable SSL for local development
     extra: {
       max: configService.get<number>('DB_MAX_CONNECTIONS', 10),
       connectionTimeoutMillis: configService.get<number>(

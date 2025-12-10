@@ -24,12 +24,15 @@ export const dataSourceOptions: DataSourceOptions = {
   migrations: ['src/db/migrations/*.ts'],
   synchronize: false,
   logging: process.env.DB_LOGGING === 'true' || process.env.NODE_ENV === 'development',
+  // Only enable SSL in production or if explicitly set
+  // For local development, explicitly disable SSL
   ssl:
-    process.env.NODE_ENV === 'production' || process.env.DB_SSL === 'true'
+    (process.env.NODE_ENV === 'production' || process.env.DB_SSL === 'true') &&
+    process.env.NODE_ENV !== 'development'
       ? {
           rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED === 'true',
         }
-      : false,
+      : false, // Explicitly disable SSL for local development
   extra: {
     max: parseInt(process.env.DB_MAX_CONNECTIONS || '10', 10),
     connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT || '30000', 10),
