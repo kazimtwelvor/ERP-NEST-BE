@@ -23,6 +23,7 @@ import { CheckOutOrderItemDto } from './dto/check-out-order-item.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { GetTrackingHistoryDto } from './dto/get-tracking-history.dto';
 import { GetOrderItemsDto } from './dto/get-order-items.dto';
+import { GetOrderItemStatusesDto } from './dto/get-order-item-statuses.dto';
 import { SyncOrdersDto } from './dto/sync-orders.dto';
 import { CustomSyncOrderItemsDto } from './dto/custom-sync-order-items.dto';
 import { ReturnToStageDto } from './dto/return-to-stage.dto';
@@ -276,6 +277,63 @@ export class OrderTrackingController {
     @Query() getHistoryDto: GetTrackingHistoryDto,
   ): Promise<PaginatedResponse<OrderItemTracking>> {
     return this.orderTrackingService.getTrackingHistory(getHistoryDto);
+  }
+
+  @Get('order-item-statuses')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ 
+    summary: 'Get all order statuses for a specific order item or by external order ID',
+    description: 'Fetches all status updates from the tracking table for a specific order item. Can filter by external order ID to get statuses for all items in an order.',
+  })
+  @ApiQuery({ 
+    name: 'orderItemId', 
+    required: false, 
+    description: 'Order item ID (UUID) - fetches statuses for this specific order item',
+    type: String,
+  })
+  @ApiQuery({ 
+    name: 'externalOrderId', 
+    required: false, 
+    description: 'External order ID - fetches statuses for all order items with this external order ID',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Order item statuses retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Order item statuses retrieved successfully' },
+        data: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/OrderItemTracking' },
+          description: 'All tracking records with status updates, ordered by creation time',
+        },
+        orderItem: {
+          type: 'object',
+          description: 'Order item details (when orderItemId is provided)',
+          $ref: '#/components/schemas/OrderItem',
+        },
+        orderItems: {
+          type: 'array',
+          description: 'Order items details (when externalOrderId is provided)',
+          items: { $ref: '#/components/schemas/OrderItem' },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Either orderItemId or externalOrderId must be provided',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Order item not found',
+  })
+  async getOrderItemStatuses(
+    @Query() getStatusesDto: GetOrderItemStatusesDto,
+  ) {
+    return this.orderTrackingService.getOrderItemStatuses(getStatusesDto);
   }
 
   @Delete('order-item/:orderItemId')
