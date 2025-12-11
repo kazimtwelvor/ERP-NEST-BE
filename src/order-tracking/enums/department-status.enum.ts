@@ -7,29 +7,30 @@ export enum DepartmentStatus {
   CUTTING_IN_PROGRESS = 'cutting_in_progress',
   CUTTING_COMPLETED = 'cutting_completed',
 
+  // Embroidery
   EMBROIDERY_IN_PROGRESS = 'embroidery_in_progress',
   EMBROIDERY_COMPLETED = 'embroidery_completed',
 
+  // Rivets
   RIVETS_INSTALLATION_IN_PROGRESS = 'rivets_installation_in_progress',
   RIVETS_COMPLETED = 'rivets_completed',
 
+  // Stitching
   STITCHING_IN_PROGRESS = 'stitching_in_progress',
   STITCHING_COMPLETED = 'stitching_completed',
 
+  // Packing
   PACKING_IN_PROGRESS = 'packing_in_progress',
   PACKING_COMPLETED = 'packing_completed',
 
+  // Quality Control
   QUALITY_CONTROL_INSPECTION = 'quality_control_inspection',
   QUALITY_CONTROL_PASSED = 'quality_control_passed',
   QUALITY_CONTROL_FAILED = 'quality_control_failed',
 
+  // Shipping/Logistics
   READY_TO_SHIP = 'ready_to_ship',
   SHIPPED = 'shipped',
-  IN_TRANSIT = 'in_transit',
-
-  CUSTOMS_CLEARANCE_PENDING = 'customs_clearance_pending',
-  CUSTOMS_CLEARED = 'customs_cleared',
-
   DELIVERED = 'delivered',
 }
 
@@ -68,9 +69,6 @@ export const DepartmentStatusMap: Record<string, DepartmentStatus[]> = {
   'logistics': [
     DepartmentStatus.READY_TO_SHIP,
     DepartmentStatus.SHIPPED,
-    DepartmentStatus.IN_TRANSIT,
-    DepartmentStatus.CUSTOMS_CLEARANCE_PENDING,
-    DepartmentStatus.CUSTOMS_CLEARED,
     DepartmentStatus.DELIVERED,
   ],
 };
@@ -120,19 +118,9 @@ export const StatusTransitions: Record<DepartmentStatus, DepartmentStatus[]> = {
     DepartmentStatus.PACKING_IN_PROGRESS,
   ],
 
-  // Shipping
+  // Shipping/Logistics
   [DepartmentStatus.READY_TO_SHIP]: [DepartmentStatus.SHIPPED],
-  [DepartmentStatus.SHIPPED]: [
-    DepartmentStatus.IN_TRANSIT,
-    DepartmentStatus.CUSTOMS_CLEARANCE_PENDING,
-  ],
-  [DepartmentStatus.IN_TRANSIT]: [DepartmentStatus.DELIVERED],
-  [DepartmentStatus.CUSTOMS_CLEARANCE_PENDING]: [
-    DepartmentStatus.CUSTOMS_CLEARED,
-  ],
-  [DepartmentStatus.CUSTOMS_CLEARED]: [DepartmentStatus.IN_TRANSIT],
-
-  // Final
+  [DepartmentStatus.SHIPPED]: [DepartmentStatus.DELIVERED],
   [DepartmentStatus.DELIVERED]: [], // End state
 };
 
