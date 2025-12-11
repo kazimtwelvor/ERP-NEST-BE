@@ -45,29 +45,29 @@ export class OrderItemDataDto {
   @IsOptional()
   sku?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Product color',
     example: 'Black',
   })
   @IsString()
-  @IsNotEmpty({ message: 'Color is required' })
-  color: string;
+  @IsOptional()
+  color?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Product size',
     example: 'M',
   })
   @IsString()
-  @IsNotEmpty({ message: 'Size is required' })
-  size: string;
+  @IsOptional()
+  size?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Product gender',
     example: 'Male',
   })
   @IsString()
-  @IsNotEmpty({ message: 'Gender is required' })
-  gender: string;
+  @IsOptional()
+  gender?: string;
 
   @ApiPropertyOptional({
     description: 'Product image URL',
