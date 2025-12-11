@@ -69,13 +69,13 @@ export class OrderItemDataDto {
   @IsNotEmpty({ message: 'Gender is required' })
   gender: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Product image URL',
     example: 'https://example.com/image.jpg',
   })
   @IsString()
-  @IsNotEmpty({ message: 'Product image is required' })
-  productImage: string;
+  @IsOptional()
+  productImage?: string;
 
   @ApiProperty({
     description: 'Quantity',
