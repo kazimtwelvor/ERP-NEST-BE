@@ -89,13 +89,12 @@ export class OrderItem {
   handedOverDepartmentId: string | null;
 
   @ApiProperty({ 
-    description: 'Current status',
-    enum: ['pending', 'checked-in', 'in-progress', 'checked-out', 'completed', 'shipped', 'delivered'],
+    description: 'Current status (can be OrderItemStatus or DepartmentStatus)',
+    example: 'in-progress',
     default: 'pending'
   })
   @Column({
-    type: 'enum',
-    enum: ['pending', 'checked-in', 'in-progress', 'checked-out', 'completed', 'shipped', 'delivered'],
+    type: 'varchar',
     default: 'pending',
     name: 'current_status'
   })
