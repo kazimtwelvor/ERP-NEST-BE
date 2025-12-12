@@ -6,6 +6,7 @@ import {
   IsOptional,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { DepartmentStatus } from '../enums/department-status.enum';
 
 export enum OrderItemStatus {
   PENDING = 'pending',
@@ -32,13 +33,12 @@ export class UpdateStatusDto {
   qrCode: string;
 
   @ApiProperty({
-    description: 'New status',
-    enum: OrderItemStatus,
+    description: 'New status (can be OrderItemStatus or DepartmentStatus)',
     example: 'in-progress',
   })
-  @IsEnum(OrderItemStatus, { message: 'Invalid status value' })
+  @IsString()
   @IsNotEmpty({ message: 'Status is required' })
-  status: OrderItemStatus;
+  status: string;
 
   @ApiProperty({
     description: 'Department ID',

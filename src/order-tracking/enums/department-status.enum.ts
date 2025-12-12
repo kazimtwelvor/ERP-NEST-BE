@@ -18,6 +18,10 @@ export enum DepartmentStatus {
   // Stitching
   STITCHING_IN_PROGRESS = 'stitching_in_progress',
   STITCHING_COMPLETED = 'stitching_completed',
+  STITCHING_KORANGI = 'stitching_korangi',
+  STITCHING_SHAH_FAISAL = 'stitching_shah_faisal',
+  STITCHING_GHAFFAR = 'stitching_ghaffar',
+  STITCHING_IRSHAD = 'stitching_irshad',
 
   // Packing
   PACKING_IN_PROGRESS = 'packing_in_progress',
@@ -98,6 +102,10 @@ export const StatusTransitions: Record<DepartmentStatus, DepartmentStatus[]> = {
   // Stitching
   [DepartmentStatus.STITCHING_IN_PROGRESS]: [DepartmentStatus.STITCHING_COMPLETED],
   [DepartmentStatus.STITCHING_COMPLETED]: [DepartmentStatus.PACKING_IN_PROGRESS],
+  [DepartmentStatus.STITCHING_KORANGI]: [DepartmentStatus.STITCHING_COMPLETED],
+  [DepartmentStatus.STITCHING_SHAH_FAISAL]: [DepartmentStatus.STITCHING_COMPLETED],
+  [DepartmentStatus.STITCHING_GHAFFAR]: [DepartmentStatus.STITCHING_COMPLETED],
+  [DepartmentStatus.STITCHING_IRSHAD]: [DepartmentStatus.STITCHING_COMPLETED],
 
   // Packing
   [DepartmentStatus.PACKING_IN_PROGRESS]: [DepartmentStatus.PACKING_COMPLETED],
