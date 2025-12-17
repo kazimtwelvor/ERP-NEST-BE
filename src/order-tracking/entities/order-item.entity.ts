@@ -40,6 +40,10 @@ export class OrderItem {
   @Column({ type: 'varchar', nullable: true })
   color: string | null;
 
+  @ApiProperty({ description: 'Leather color', example: 'Brown', nullable: true })
+  @Column({ name: 'leather_color', type: 'varchar', nullable: true })
+  leatherColor: string | null;
+
   @ApiProperty({ description: 'Product size', example: 'M', nullable: true })
   @Column({ type: 'varchar', nullable: true })
   size: string | null;

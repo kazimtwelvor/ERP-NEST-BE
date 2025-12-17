@@ -54,6 +54,14 @@ export class OrderItemDataDto {
   color?: string;
 
   @ApiPropertyOptional({
+    description: 'Leather color',
+    example: 'Brown',
+  })
+  @IsString()
+  @IsOptional()
+  leatherColor?: string;
+
+  @ApiPropertyOptional({
     description: 'Product size',
     example: 'M',
   })

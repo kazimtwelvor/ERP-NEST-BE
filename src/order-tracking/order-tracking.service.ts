@@ -29,7 +29,10 @@ import { ReturnToStageDto } from './dto/return-to-stage.dto';
 import { CustomSyncOrderItemsDto } from './dto/custom-sync-order-items.dto';
 import { ORDER_TRACKING_MESSAGES } from './messages/order-tracking.messages';
 import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
-import { DepartmentStatus, StatusTransitions } from './enums/department-status.enum';
+import {
+  DepartmentStatus,
+  StatusTransitions,
+} from './enums/department-status.enum';
 
 @Injectable()
 export class OrderTrackingService {
@@ -57,13 +60,14 @@ export class OrderTrackingService {
    * Generate QR code URL for an order item
    */
   private generateQRCodeUrl(orderItemId: string, storeName: string): string {
-    const frontendUrl = this.configService.get<string>('frontendUrl') || 
-                       process.env.FRONTEND_URL || 
-                       'http://localhost:3000';
-    
+    const frontendUrl =
+      this.configService.get<string>('frontendUrl') ||
+      process.env.FRONTEND_URL ||
+      'http://localhost:3000';
+
     // Remove trailing slash if present
     const baseUrl = frontendUrl.replace(/\/$/, '');
-    
+
     // Generate URL pattern: FE_URL/orders/update-status?orderItemId={orderItemId}
     return `${baseUrl}/orders/update-status?orderItemId=${orderItemId}`;
   }
@@ -71,7 +75,9 @@ export class OrderTrackingService {
   /**
    * Generate QR code for an order item
    */
-  async generateQRCode(orderItemId: string): Promise<{ qrCode: string; qrCodeUrl: string | null; message: string }> {
+  async generateQRCode(
+    orderItemId: string,
+  ): Promise<{ qrCode: string; qrCodeUrl: string | null; message: string }> {
     const orderItem = await this.orderItemRepository.findOne({
       where: { id: orderItemId },
     });
@@ -101,7 +107,10 @@ export class OrderTrackingService {
   /**
    * Verify user password
    */
-  private async verifyUserPassword(userId: string, password: string): Promise<User> {
+  private async verifyUserPassword(
+    userId: string,
+    password: string,
+  ): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['role', 'department'],
@@ -137,17 +146,21 @@ export class OrderTrackingService {
   ): Promise<OrderItemTracking | null> {
     // Skip if orderStatus hasn't actually changed
     if (options?.skipIfNoChange && previousOrderStatus === newOrderStatus) {
-      this.logger.debug(`[createTrackingRecordForOrderStatusUpdate] Skipping - no change in orderStatus`);
+      this.logger.debug(
+        `[createTrackingRecordForOrderStatusUpdate] Skipping - no change in orderStatus`,
+      );
       return null;
     }
 
     // Skip if both are null/undefined (unless this is a new item with initial status)
     // For new items: previousStatus is null but newStatus exists - allow creation
     if (!previousOrderStatus && !newOrderStatus) {
-      this.logger.debug(`[createTrackingRecordForOrderStatusUpdate] Skipping - both statuses are null`);
+      this.logger.debug(
+        `[createTrackingRecordForOrderStatusUpdate] Skipping - both statuses are null`,
+      );
       return null;
     }
-    
+
     // Allow creation for new items (previousStatus is null but newStatus exists)
     // This handles the case when creating a new order item with an initial orderStatus
 
@@ -165,7 +178,9 @@ export class OrderTrackingService {
       }
       // If still no context, skip tracking for automated updates
       if (!userId && !departmentId) {
-        this.logger.warn(`[createTrackingRecordForOrderStatusUpdate] Skipping - no userId or departmentId available`);
+        this.logger.warn(
+          `[createTrackingRecordForOrderStatusUpdate] Skipping - no userId or departmentId available`,
+        );
         return null;
       }
     }
@@ -178,14 +193,18 @@ export class OrderTrackingService {
     // If we still don't have required context, skip tracking
     // This can happen in sync operations where user context isn't available
     if (!userId || !departmentId) {
-      this.logger.warn(`[createTrackingRecordForOrderStatusUpdate] Skipping - missing required context (userId: ${userId ? 'provided' : 'MISSING'}, departmentId: ${departmentId ? 'provided' : 'MISSING'})`);
+      this.logger.warn(
+        `[createTrackingRecordForOrderStatusUpdate] Skipping - missing required context (userId: ${userId ? 'provided' : 'MISSING'}, departmentId: ${departmentId ? 'provided' : 'MISSING'})`,
+      );
       return null;
     }
 
     // Store orderStatus in status field, and previous orderStatus in previousStatus field
     // This allows tracking the actual orderStatus changes (cutting_in_progress, stitching_in_progress, etc.)
-    const trackingStatus = newOrderStatus || orderItem.currentStatus || 'in-progress';
-    const trackingPreviousStatus = previousOrderStatus || orderItem.currentStatus || null;
+    const trackingStatus =
+      newOrderStatus || orderItem.currentStatus || 'in-progress';
+    const trackingPreviousStatus =
+      previousOrderStatus || orderItem.currentStatus || null;
 
     // Create tracking record - store orderStatus in status field
     const tracking = new OrderItemTracking();
@@ -196,12 +215,17 @@ export class OrderTrackingService {
     tracking.status = trackingStatus; // Store the new orderStatus here
     tracking.previousStatus = trackingPreviousStatus; // Store the previous orderStatus here
     tracking.departmentStatus = newOrderStatus; // Also store in departmentStatus for consistency
-    tracking.preparationType = options?.preparationType || orderItem.preparationType || null;
-    tracking.notes = options?.notes || `Order status updated from ${previousOrderStatus || 'null'} to ${newOrderStatus || 'null'}`;
+    tracking.preparationType =
+      options?.preparationType || orderItem.preparationType || null;
+    tracking.notes =
+      options?.notes ||
+      `Order status updated from ${previousOrderStatus || 'null'} to ${newOrderStatus || 'null'}`;
 
     const savedTracking = await this.trackingRepository.save(tracking);
-    this.logger.log(`[createTrackingRecordForOrderStatusUpdate] Tracking record saved - ID: ${savedTracking.id}, OrderItemId: ${savedTracking.orderItemId}, Status: ${previousOrderStatus || 'null'} → ${newOrderStatus || 'null'}`);
-    
+    this.logger.log(
+      `[createTrackingRecordForOrderStatusUpdate] Tracking record saved - ID: ${savedTracking.id}, OrderItemId: ${savedTracking.orderItemId}, Status: ${previousOrderStatus || 'null'} → ${newOrderStatus || 'null'}`,
+    );
+
     return savedTracking;
   }
 
@@ -215,7 +239,9 @@ export class OrderTrackingService {
   ): Promise<void> {
     // If user has no role, they can't update order statuses
     if (!user.role) {
-      throw new BadRequestException('User must have a role assigned to update order statuses');
+      throw new BadRequestException(
+        'User must have a role assigned to update order statuses',
+      );
     }
 
     // Verify the department exists (still needed for order tracking context)
@@ -234,7 +260,10 @@ export class OrderTrackingService {
     );
 
     if (!isValid) {
-      const availableStatuses = await this.rolePermissionService.getAvailableStatusesForRole(user.role.id);
+      const availableStatuses =
+        await this.rolePermissionService.getAvailableStatusesForRole(
+          user.role.id,
+        );
       throw new BadRequestException(
         `Status '${orderStatus}' is not valid for role '${user.role.name}'. Available statuses: ${availableStatuses.join(', ')}`,
       );
@@ -247,7 +276,10 @@ export class OrderTrackingService {
   async checkIn(
     checkInDto: CheckInOrderItemDto,
   ): Promise<{ tracking: OrderItemTracking; message: string }> {
-    const user = await this.verifyUserPassword(checkInDto.userId, checkInDto.password);
+    const user = await this.verifyUserPassword(
+      checkInDto.userId,
+      checkInDto.password,
+    );
 
     const orderItem = await this.orderItemRepository.findOne({
       where: { qrCode: checkInDto.qrCode },
@@ -271,24 +303,32 @@ export class OrderTrackingService {
     // 1. Status is 'pending' (first time)
     // 2. Status is 'checked-out' and this department matches the handed over department
     // 3. Status is 'checked-in' or 'in-progress' but in a DIFFERENT department
-    
-    if (orderItem.currentStatus === 'checked-in' || orderItem.currentStatus === 'in-progress') {
+
+    if (
+      orderItem.currentStatus === 'checked-in' ||
+      orderItem.currentStatus === 'in-progress'
+    ) {
       // If item is already in a department, verify it's not the same department
       if (orderItem.currentDepartmentId === checkInDto.departmentId) {
-        throw new BadRequestException(ORDER_TRACKING_MESSAGES.ALREADY_CHECKED_IN);
+        throw new BadRequestException(
+          ORDER_TRACKING_MESSAGES.ALREADY_CHECKED_IN,
+        );
       }
       // If item is in a different department, it should be checked out first
       // But we'll allow direct check-in to new department (item is moving)
     }
-    
+
     if (orderItem.currentStatus === 'checked-out') {
-      if (orderItem.handedOverDepartmentId && orderItem.handedOverDepartmentId !== checkInDto.departmentId) {
+      if (
+        orderItem.handedOverDepartmentId &&
+        orderItem.handedOverDepartmentId !== checkInDto.departmentId
+      ) {
         throw new BadRequestException(
           `Order item is being handed over to a different department. Expected department: ${orderItem.handedOverDepartmentId}`,
         );
       }
     }
-    
+
     // If status is 'pending', allow check-in (first time)
 
     // Validate order status if provided
@@ -304,7 +344,7 @@ export class OrderTrackingService {
     const previousOrderStatus = orderItem.orderStatus;
     const previousStatus = orderItem.currentStatus;
     const initialOrderStatus = checkInDto.orderStatus || null;
-    
+
     // Update order item status first
     if (orderItem.currentDepartmentId) {
       orderItem.lastDepartmentId = orderItem.currentDepartmentId;
@@ -320,18 +360,19 @@ export class OrderTrackingService {
     let tracking: OrderItemTracking;
     if (initialOrderStatus && previousOrderStatus !== initialOrderStatus) {
       // OrderStatus changed - create orderStatus tracking record
-      const orderStatusTracking = await this.createTrackingRecordForOrderStatusUpdate(
-        orderItem,
-        previousOrderStatus,
-        initialOrderStatus,
-        {
-          userId: user.id,
-          departmentId: checkInDto.departmentId,
-          notes: checkInDto.notes || `Order status updated during check-in`,
-          preparationType: checkInDto.preparationType || null,
-          skipIfNoChange: true,
-        },
-      );
+      const orderStatusTracking =
+        await this.createTrackingRecordForOrderStatusUpdate(
+          orderItem,
+          previousOrderStatus,
+          initialOrderStatus,
+          {
+            userId: user.id,
+            departmentId: checkInDto.departmentId,
+            notes: checkInDto.notes || `Order status updated during check-in`,
+            preparationType: checkInDto.preparationType || null,
+            skipIfNoChange: true,
+          },
+        );
       // If tracking wasn't created (missing context), fall back to check-in tracking
       if (orderStatusTracking) {
         tracking = orderStatusTracking;
@@ -384,7 +425,10 @@ export class OrderTrackingService {
     checkOutDto: CheckOutOrderItemDto,
   ): Promise<{ tracking: OrderItemTracking; message: string }> {
     // Verify user password
-    const user = await this.verifyUserPassword(checkOutDto.userId, checkOutDto.password);
+    const user = await this.verifyUserPassword(
+      checkOutDto.userId,
+      checkOutDto.password,
+    );
 
     // Find order item by QR code
     const orderItem = await this.orderItemRepository.findOne({
@@ -406,8 +450,13 @@ export class OrderTrackingService {
 
     // Verify item is currently checked in to THIS specific department
     // Item must be in 'checked-in' or 'in-progress' status AND in this department
-    if (orderItem.currentStatus !== 'checked-in' && orderItem.currentStatus !== 'in-progress') {
-      throw new BadRequestException('Order item must be checked in or in-progress to check out');
+    if (
+      orderItem.currentStatus !== 'checked-in' &&
+      orderItem.currentStatus !== 'in-progress'
+    ) {
+      throw new BadRequestException(
+        'Order item must be checked in or in-progress to check out',
+      );
     }
 
     if (orderItem.currentDepartmentId !== checkOutDto.departmentId) {
@@ -496,10 +545,10 @@ export class OrderTrackingService {
       'checked-in': ['in-progress', 'checked-out'],
       'in-progress': ['in-progress', 'checked-out'],
       'checked-out': ['checked-in'],
-      'pending': ['checked-in'],
-      'completed': ['shipped'],
-      'shipped': ['delivered'],
-      'delivered': [], // Cannot transition from delivered
+      pending: ['checked-in'],
+      completed: ['shipped'],
+      shipped: ['delivered'],
+      delivered: [], // Cannot transition from delivered
     };
 
     // All strict validations removed - allow any status update
@@ -507,10 +556,13 @@ export class OrderTrackingService {
     // Store previous orderStatus to track changes
     const previousOrderStatus = orderItem.orderStatus;
     const previousStatus = orderItem.currentStatus;
-    
+
     // Update order item status first
     orderItem.currentStatus = updateStatusDto.status;
-    if (updateStatusDto.status === 'checked-in' || updateStatusDto.status === 'in-progress') {
+    if (
+      updateStatusDto.status === 'checked-in' ||
+      updateStatusDto.status === 'in-progress'
+    ) {
       orderItem.currentDepartmentId = updateStatusDto.departmentId;
     }
     // Update preparation type if provided
@@ -525,20 +577,26 @@ export class OrderTrackingService {
 
     // Create tracking record - if orderStatus changed, create orderStatus tracking, otherwise create status-update tracking
     let tracking: OrderItemTracking;
-    if (updateStatusDto.orderStatus && previousOrderStatus !== updateStatusDto.orderStatus) {
+    if (
+      updateStatusDto.orderStatus &&
+      previousOrderStatus !== updateStatusDto.orderStatus
+    ) {
       // OrderStatus changed - create orderStatus tracking record
-      const orderStatusTracking = await this.createTrackingRecordForOrderStatusUpdate(
-        orderItem,
-        previousOrderStatus,
-        updateStatusDto.orderStatus,
-        {
-          userId: user.id,
-          departmentId: updateStatusDto.departmentId,
-          notes: updateStatusDto.notes || `Order status updated: ${previousOrderStatus || 'null'} → ${updateStatusDto.orderStatus}`,
-          preparationType: updateStatusDto.preparationType || null,
-          skipIfNoChange: true,
-        },
-      );
+      const orderStatusTracking =
+        await this.createTrackingRecordForOrderStatusUpdate(
+          orderItem,
+          previousOrderStatus,
+          updateStatusDto.orderStatus,
+          {
+            userId: user.id,
+            departmentId: updateStatusDto.departmentId,
+            notes:
+              updateStatusDto.notes ||
+              `Order status updated: ${previousOrderStatus || 'null'} → ${updateStatusDto.orderStatus}`,
+            preparationType: updateStatusDto.preparationType || null,
+            skipIfNoChange: true,
+          },
+        );
       // If tracking wasn't created (missing context), fall back to status-update tracking
       if (orderStatusTracking) {
         tracking = orderStatusTracking;
@@ -591,7 +649,10 @@ export class OrderTrackingService {
     returnToStageDto: ReturnToStageDto,
   ): Promise<{ tracking: OrderItemTracking; message: string }> {
     // Verify user password
-    const user = await this.verifyUserPassword(returnToStageDto.userId, returnToStageDto.password);
+    const user = await this.verifyUserPassword(
+      returnToStageDto.userId,
+      returnToStageDto.password,
+    );
 
     // Find order item by QR code
     const orderItem = await this.orderItemRepository.findOne({
@@ -635,7 +696,7 @@ export class OrderTrackingService {
 
     // Create tracking record for return
     const previousStatus = orderItem.currentStatus;
-    
+
     const tracking = this.trackingRepository.create({
       orderItemId: orderItem.id,
       departmentId: returnToStageDto.departmentId,
@@ -705,8 +766,11 @@ export class OrderTrackingService {
     }
 
     // If visibility filtering is needed, fetch more items to account for filtering
-    const fetchLimit = 
-      getHistoryDto.roleId || getHistoryDto.roleName || getHistoryDto.roleIds || getHistoryDto.roleNames
+    const fetchLimit =
+      getHistoryDto.roleId ||
+      getHistoryDto.roleName ||
+      getHistoryDto.roleIds ||
+      getHistoryDto.roleNames
         ? limit * 5 // Fetch 5x more if filtering by visibility
         : limit;
 
@@ -775,10 +839,10 @@ export class OrderTrackingService {
 
     // Check visibility if role filters are provided
     if (roleId || roleName || roleIds || roleNames) {
-      if (!this.isItemVisible(orderItem, roleId, roleName, roleIds, roleNames)) {
-        throw new NotFoundException(
-          'Order item not found or access denied',
-        );
+      if (
+        !this.isItemVisible(orderItem, roleId, roleName, roleIds, roleNames)
+      ) {
+        throw new NotFoundException('Order item not found or access denied');
       }
     }
 
@@ -788,17 +852,21 @@ export class OrderTrackingService {
   /**
    * Sync orders from external API stores
    */
-  async syncOrders(syncOrdersDto: SyncOrdersDto): Promise<{ message: string; synced: number }> {
+  async syncOrders(
+    syncOrdersDto: SyncOrdersDto,
+  ): Promise<{ message: string; synced: number }> {
     let apiUrl: string;
     let storeName: string;
 
     switch (syncOrdersDto.storeName) {
       case StoreName.FINEYST_JACKETS:
-        apiUrl = this.configService.get<string>('FINEYST_JACKETS_API_URL') || '';
+        apiUrl =
+          this.configService.get<string>('FINEYST_JACKETS_API_URL') || '';
         storeName = 'fineyst-jackets';
         break;
       case StoreName.FINEYST_PATCHES:
-        apiUrl = this.configService.get<string>('FINEYST_PATCHES_API_URL') || '';
+        apiUrl =
+          this.configService.get<string>('FINEYST_PATCHES_API_URL') || '';
         storeName = 'fineyst-patches';
         break;
       default:
@@ -842,15 +910,22 @@ export class OrderTrackingService {
 
           if (existingItem) {
             // Update existing item
-            existingItem.productName = item.productName || item.product?.name || null;
+            existingItem.productName =
+              item.productName || item.product?.name || null;
             existingItem.sku = item.sku || item.product?.sku || null;
             existingItem.color = item.color || item.product?.color || '';
             existingItem.size = item.size || item.product?.size || '';
             existingItem.gender = item.gender || item.product?.gender || '';
-            existingItem.productImage = item.productImage || item.product?.productImage || item.product?.image || '';
+            existingItem.productImage =
+              item.productImage ||
+              item.product?.productImage ||
+              item.product?.image ||
+              '';
             existingItem.quantity = item.quantity || 1;
-            existingItem.isLeather = item.isLeather || item.product?.isLeather || false;
-            existingItem.isPattern = item.isPattern || item.product?.isPattern || false;
+            existingItem.isLeather =
+              item.isLeather || item.product?.isLeather || false;
+            existingItem.isPattern =
+              item.isPattern || item.product?.isPattern || false;
             await this.orderItemRepository.save(existingItem);
           } else {
             // Create new order item
@@ -861,9 +936,15 @@ export class OrderTrackingService {
               productName: item.productName || item.product?.name || null,
               sku: item.sku || item.product?.sku || null,
               color: item.color || item.product?.color || '',
+              leatherColor:
+                item.leatherColor || item.product?.leatherColor || null,
               size: item.size || item.product?.size || '',
               gender: item.gender || item.product?.gender || '',
-              productImage: item.productImage || item.product?.productImage || item.product?.image || '',
+              productImage:
+                item.productImage ||
+                item.product?.productImage ||
+                item.product?.image ||
+                '',
               quantity: item.quantity || 1,
               isLeather: item.isLeather || item.product?.isLeather || false,
               isPattern: item.isPattern || item.product?.isPattern || false,
@@ -875,10 +956,13 @@ export class OrderTrackingService {
             // Generate QR code for new item
             const hash = crypto.randomBytes(16).toString('hex');
             orderItem.qrCode = `ORDER_ITEM_${orderItem.id}_${hash}`;
-            
+
             // Generate QR code URL with store name
-            orderItem.qrCodeUrl = this.generateQRCodeUrl(orderItem.id, storeName);
-            
+            orderItem.qrCodeUrl = this.generateQRCodeUrl(
+              orderItem.id,
+              storeName,
+            );
+
             await this.orderItemRepository.save(orderItem);
 
             syncedCount++;
@@ -900,9 +984,10 @@ export class OrderTrackingService {
   /**
    * Validate visibility status - check if roleIds and roleNames exist
    */
-  private async validateVisibilityStatus(
-    visibilityStatus: { roleIds: string[]; roleNames: string[] },
-  ): Promise<void> {
+  private async validateVisibilityStatus(visibilityStatus: {
+    roleIds: string[];
+    roleNames: string[];
+  }): Promise<void> {
     // Validate role IDs
     if (visibilityStatus.roleIds && visibilityStatus.roleIds.length > 0) {
       const roles = await this.roleRepository.findBy({
@@ -994,7 +1079,9 @@ export class OrderTrackingService {
     customSyncDto: CustomSyncOrderItemsDto,
   ): Promise<{ message: string; synced: number; updated: number }> {
     // Log API call
-    this.logger.log(`[customSyncOrderItems] API called - Store: ${customSyncDto.storeName}, Items: ${customSyncDto.orderItems.length}, UserId: ${customSyncDto.userId || 'NOT PROVIDED'}, DepartmentId: ${customSyncDto.departmentId || 'NOT PROVIDED'}`);
+    this.logger.log(
+      `[customSyncOrderItems] API called - Store: ${customSyncDto.storeName}, Items: ${customSyncDto.orderItems.length}, UserId: ${customSyncDto.userId || 'NOT PROVIDED'}, DepartmentId: ${customSyncDto.departmentId || 'NOT PROVIDED'}`,
+    );
 
     // Validate visibility status if provided
     if (customSyncDto.visibilityStatus) {
@@ -1017,9 +1104,11 @@ export class OrderTrackingService {
       if (existingItem) {
         // Store previous orderStatus to track changes
         const previousOrderStatus = existingItem.orderStatus;
-        
-        this.logger.log(`[customSyncOrderItems] Updating existing item - OrderId: ${itemData.externalOrderId}, ItemId: ${itemData.externalItemId}, Previous orderStatus: ${previousOrderStatus || 'null'}, New orderStatus: ${itemData.orderStatus || 'null'}`);
-        
+
+        this.logger.log(
+          `[customSyncOrderItems] Updating existing item - OrderId: ${itemData.externalOrderId}, ItemId: ${itemData.externalItemId}, Previous orderStatus: ${previousOrderStatus || 'null'}, New orderStatus: ${itemData.orderStatus || 'null'}`,
+        );
+
         // Update existing item
         if (itemData.productName !== undefined) {
           existingItem.productName = itemData.productName || null;
@@ -1029,6 +1118,9 @@ export class OrderTrackingService {
         }
         if (itemData.color !== undefined) {
           existingItem.color = itemData.color;
+        }
+        if (itemData.leatherColor !== undefined) {
+          existingItem.leatherColor = itemData.leatherColor;
         }
         if (itemData.size !== undefined) {
           existingItem.size = itemData.size;
@@ -1042,52 +1134,68 @@ export class OrderTrackingService {
         existingItem.quantity = itemData.quantity || 1;
         existingItem.isLeather = itemData.isLeather ?? false;
         existingItem.isPattern = itemData.isPattern ?? false;
-        
+
         if (itemData.orderStatus !== undefined) {
           existingItem.orderStatus = itemData.orderStatus || null;
         }
-        
+
         // Update visibility status if provided
         if (customSyncDto.visibilityStatus) {
           existingItem.visibilityStatus = customSyncDto.visibilityStatus;
         }
-        
+
         await this.orderItemRepository.save(existingItem);
-        
+
         // Create tracking record if orderStatus changed and we have tracking context
-        if (itemData.orderStatus !== undefined && previousOrderStatus !== existingItem.orderStatus) {
-          this.logger.log(`[customSyncOrderItems] OrderStatus changed detected - Previous: ${previousOrderStatus || 'null'} → New: ${existingItem.orderStatus || 'null'}, UserId: ${customSyncDto.userId || 'MISSING'}, DepartmentId: ${customSyncDto.departmentId || 'MISSING'}`);
-          
-          const trackingRecord = await this.createTrackingRecordForOrderStatusUpdate(
-            existingItem,
-            previousOrderStatus,
-            existingItem.orderStatus,
-            {
-              userId: customSyncDto.userId,
-              departmentId: customSyncDto.departmentId,
-              notes: `Order status updated via sync: ${previousOrderStatus || 'null'} → ${existingItem.orderStatus || 'null'}`,
-              skipIfNoChange: true,
-            },
+        if (
+          itemData.orderStatus !== undefined &&
+          previousOrderStatus !== existingItem.orderStatus
+        ) {
+          this.logger.log(
+            `[customSyncOrderItems] OrderStatus changed detected - Previous: ${previousOrderStatus || 'null'} → New: ${existingItem.orderStatus || 'null'}, UserId: ${customSyncDto.userId || 'MISSING'}, DepartmentId: ${customSyncDto.departmentId || 'MISSING'}`,
           );
-          
+
+          const trackingRecord =
+            await this.createTrackingRecordForOrderStatusUpdate(
+              existingItem,
+              previousOrderStatus,
+              existingItem.orderStatus,
+              {
+                userId: customSyncDto.userId,
+                departmentId: customSyncDto.departmentId,
+                notes: `Order status updated via sync: ${previousOrderStatus || 'null'} → ${existingItem.orderStatus || 'null'}`,
+                skipIfNoChange: true,
+              },
+            );
+
           if (trackingRecord) {
-            this.logger.log(`[customSyncOrderItems] ✅ Tracking record CREATED - ID: ${trackingRecord.id}, OrderItemId: ${trackingRecord.orderItemId}, DepartmentStatus: ${trackingRecord.departmentStatus || 'null'}`);
+            this.logger.log(
+              `[customSyncOrderItems] ✅ Tracking record CREATED - ID: ${trackingRecord.id}, OrderItemId: ${trackingRecord.orderItemId}, DepartmentStatus: ${trackingRecord.departmentStatus || 'null'}`,
+            );
           } else {
-            this.logger.warn(`[customSyncOrderItems] ⚠️ Tracking record NOT CREATED - Missing userId or departmentId context`);
+            this.logger.warn(
+              `[customSyncOrderItems] ⚠️ Tracking record NOT CREATED - Missing userId or departmentId context`,
+            );
           }
         } else {
           if (itemData.orderStatus === undefined) {
-            this.logger.debug(`[customSyncOrderItems] No orderStatus in payload - skipping tracking`);
+            this.logger.debug(
+              `[customSyncOrderItems] No orderStatus in payload - skipping tracking`,
+            );
           } else if (previousOrderStatus === existingItem.orderStatus) {
-            this.logger.debug(`[customSyncOrderItems] OrderStatus unchanged (${previousOrderStatus || 'null'}) - skipping tracking`);
+            this.logger.debug(
+              `[customSyncOrderItems] OrderStatus unchanged (${previousOrderStatus || 'null'}) - skipping tracking`,
+            );
           }
         }
-        
+
         updatedCount++;
       } else {
         // Create new order item
-        this.logger.log(`[customSyncOrderItems] Creating new item - OrderId: ${itemData.externalOrderId}, ItemId: ${itemData.externalItemId}, OrderStatus: ${itemData.orderStatus || 'null'}`);
-        
+        this.logger.log(
+          `[customSyncOrderItems] Creating new item - OrderId: ${itemData.externalOrderId}, ItemId: ${itemData.externalItemId}, OrderStatus: ${itemData.orderStatus || 'null'}`,
+        );
+
         const orderItemData: Partial<OrderItem> = {
           externalOrderId: itemData.externalOrderId,
           externalItemId: itemData.externalItemId,
@@ -1095,6 +1203,7 @@ export class OrderTrackingService {
           productName: itemData.productName ?? null,
           sku: itemData.sku ?? null,
           color: itemData.color,
+          leatherColor: itemData.leatherColor,
           size: itemData.size,
           gender: itemData.gender,
           productImage: itemData.productImage,
@@ -1113,38 +1222,56 @@ export class OrderTrackingService {
         // Generate QR code for new item
         const hash = crypto.randomBytes(16).toString('hex');
         orderItem.qrCode = `ORDER_ITEM_${orderItem.id}_${hash}`;
-        
+
         // Generate QR code URL with store name
-        orderItem.qrCodeUrl = this.generateQRCodeUrl(orderItem.id, customSyncDto.storeName);
-        
+        orderItem.qrCodeUrl = this.generateQRCodeUrl(
+          orderItem.id,
+          customSyncDto.storeName,
+        );
+
         await this.orderItemRepository.save(orderItem);
 
         // Create tracking record if orderStatus is provided for new item
-        if (itemData.orderStatus && customSyncDto.userId && customSyncDto.departmentId) {
-          this.logger.log(`[customSyncOrderItems] Creating initial tracking for new item - OrderStatus: ${itemData.orderStatus}, UserId: ${customSyncDto.userId}, DepartmentId: ${customSyncDto.departmentId}`);
-          
-          const trackingRecord = await this.createTrackingRecordForOrderStatusUpdate(
-            orderItem,
-            null, // Previous status is null for new items
-            itemData.orderStatus,
-            {
-              userId: customSyncDto.userId,
-              departmentId: customSyncDto.departmentId,
-              notes: `Order item created with status: ${itemData.orderStatus}`,
-              preparationType: null,
-            },
+        if (
+          itemData.orderStatus &&
+          customSyncDto.userId &&
+          customSyncDto.departmentId
+        ) {
+          this.logger.log(
+            `[customSyncOrderItems] Creating initial tracking for new item - OrderStatus: ${itemData.orderStatus}, UserId: ${customSyncDto.userId}, DepartmentId: ${customSyncDto.departmentId}`,
           );
-          
+
+          const trackingRecord =
+            await this.createTrackingRecordForOrderStatusUpdate(
+              orderItem,
+              null, // Previous status is null for new items
+              itemData.orderStatus,
+              {
+                userId: customSyncDto.userId,
+                departmentId: customSyncDto.departmentId,
+                notes: `Order item created with status: ${itemData.orderStatus}`,
+                preparationType: null,
+              },
+            );
+
           if (trackingRecord) {
-            this.logger.log(`[customSyncOrderItems] ✅ Initial tracking record CREATED for new item - ID: ${trackingRecord.id}, OrderItemId: ${trackingRecord.orderItemId}, DepartmentStatus: ${trackingRecord.departmentStatus || 'null'}`);
+            this.logger.log(
+              `[customSyncOrderItems] ✅ Initial tracking record CREATED for new item - ID: ${trackingRecord.id}, OrderItemId: ${trackingRecord.orderItemId}, DepartmentStatus: ${trackingRecord.departmentStatus || 'null'}`,
+            );
           } else {
-            this.logger.warn(`[customSyncOrderItems] ⚠️ Initial tracking record NOT CREATED for new item - Missing context`);
+            this.logger.warn(
+              `[customSyncOrderItems] ⚠️ Initial tracking record NOT CREATED for new item - Missing context`,
+            );
           }
         } else {
           if (!itemData.orderStatus) {
-            this.logger.debug(`[customSyncOrderItems] No orderStatus provided for new item - skipping initial tracking`);
+            this.logger.debug(
+              `[customSyncOrderItems] No orderStatus provided for new item - skipping initial tracking`,
+            );
           } else {
-            this.logger.debug(`[customSyncOrderItems] Missing userId or departmentId for new item tracking - UserId: ${customSyncDto.userId || 'MISSING'}, DepartmentId: ${customSyncDto.departmentId || 'MISSING'}`);
+            this.logger.debug(
+              `[customSyncOrderItems] Missing userId or departmentId for new item tracking - UserId: ${customSyncDto.userId || 'MISSING'}, DepartmentId: ${customSyncDto.departmentId || 'MISSING'}`,
+            );
           }
         }
 
@@ -1152,7 +1279,9 @@ export class OrderTrackingService {
       }
     }
 
-    this.logger.log(`[customSyncOrderItems] ✅ Completed - Synced: ${syncedCount}, Updated: ${updatedCount}`);
+    this.logger.log(
+      `[customSyncOrderItems] ✅ Completed - Synced: ${syncedCount}, Updated: ${updatedCount}`,
+    );
 
     return {
       message: 'Order items synced successfully',
@@ -1186,8 +1315,11 @@ export class OrderTrackingService {
     }
 
     // If visibility filtering is needed, fetch more items to account for filtering
-    const fetchLimit = 
-      getOrderItemsDto.roleId || getOrderItemsDto.roleName || getOrderItemsDto.roleIds || getOrderItemsDto.roleNames
+    const fetchLimit =
+      getOrderItemsDto.roleId ||
+      getOrderItemsDto.roleName ||
+      getOrderItemsDto.roleIds ||
+      getOrderItemsDto.roleNames
         ? limit * 5 // Fetch 5x more if filtering by visibility
         : limit;
 
@@ -1235,9 +1367,7 @@ export class OrderTrackingService {
    * Get all order statuses for a specific order item or by external order ID
    * Returns all tracking records with status updates for the order item(s)
    */
-  async getOrderItemStatuses(
-    getStatusesDto: GetOrderItemStatusesDto,
-  ): Promise<{
+  async getOrderItemStatuses(getStatusesDto: GetOrderItemStatusesDto): Promise<{
     message: string;
     data: OrderItemTracking[];
     orderItem?: OrderItem;
@@ -1261,7 +1391,9 @@ export class OrderTrackingService {
       });
 
       if (!orderItem) {
-        throw new NotFoundException(ORDER_TRACKING_MESSAGES.ORDER_ITEM_NOT_FOUND);
+        throw new NotFoundException(
+          ORDER_TRACKING_MESSAGES.ORDER_ITEM_NOT_FOUND,
+        );
       }
 
       orderItemIds = [orderItem.id];
@@ -1293,6 +1425,7 @@ export class OrderTrackingService {
             color: true,
             size: true,
             gender: true,
+            leatherColor: true,
             productImage: true,
             quantity: true,
             currentStatus: true,
@@ -1356,6 +1489,7 @@ export class OrderTrackingService {
             productName: true,
             sku: true,
             color: true,
+            leatherColor: true,
             size: true,
             gender: true,
             productImage: true,
@@ -1409,4 +1543,3 @@ export class OrderTrackingService {
     };
   }
 }
-
