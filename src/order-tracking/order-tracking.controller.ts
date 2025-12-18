@@ -27,6 +27,7 @@ import { GetOrderItemStatusesDto } from './dto/get-order-item-statuses.dto';
 import { SyncOrdersDto } from './dto/sync-orders.dto';
 import { CustomSyncOrderItemsDto } from './dto/custom-sync-order-items.dto';
 import { ReturnToStageDto } from './dto/return-to-stage.dto';
+import { UpdateIssuesDto } from './dto/update-issues.dto';
 import { OrderItem } from './entities/order-item.entity';
 import { OrderItemTracking } from './entities/order-item-tracking.entity';
 import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
@@ -334,6 +335,27 @@ export class OrderTrackingController {
     @Query() getStatusesDto: GetOrderItemStatusesDto,
   ) {
     return this.orderTrackingService.getOrderItemStatuses(getStatusesDto);
+  }
+
+  @Post('order-item/:orderItemId/issues')
+  @Permissions(AccessPermissions.UpdateOrder)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update issues for a specific order item' })
+  @ApiParam({ name: 'orderItemId', description: 'Order item ID (UUID)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Issues updated successfully',
+    type: OrderItem,
+  })
+  @ApiResponse({
+    status: 404,
+    description: ORDER_TRACKING_MESSAGES.ORDER_ITEM_NOT_FOUND,
+  })
+  async updateIssues(
+    @Param('orderItemId') orderItemId: string,
+    @Body() updateIssuesDto: UpdateIssuesDto,
+  ) {
+    return this.orderTrackingService.updateIssues(orderItemId, updateIssuesDto.issues);
   }
 
   @Delete('order-item/:orderItemId')

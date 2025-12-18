@@ -1139,6 +1139,10 @@ export class OrderTrackingService {
           existingItem.orderStatus = itemData.orderStatus || null;
         }
 
+        if (itemData.issues !== undefined) {
+          existingItem.issues = itemData.issues || null;
+        }
+
         // Update visibility status if provided
         if (customSyncDto.visibilityStatus) {
           existingItem.visibilityStatus = customSyncDto.visibilityStatus;
@@ -1211,6 +1215,7 @@ export class OrderTrackingService {
           isLeather: itemData.isLeather ?? false,
           isPattern: itemData.isPattern ?? false,
           orderStatus: itemData.orderStatus || null,
+          issues: itemData.issues || null,
           visibilityStatus: customSyncDto.visibilityStatus || null,
           currentStatus: 'pending',
         };
@@ -1526,6 +1531,22 @@ export class OrderTrackingService {
    * Delete an order item by ID
    * This will also delete all associated tracking history due to CASCADE relationship
    */
+  async updateIssues(orderItemId: string, issues: string | null | undefined): Promise<OrderItem> {
+    const orderItem = await this.orderItemRepository.findOne({
+      where: { id: orderItemId },
+    });
+
+    if (!orderItem) {
+      throw new NotFoundException(ORDER_TRACKING_MESSAGES.ORDER_ITEM_NOT_FOUND);
+    }
+
+    orderItem.issues = issues ?? null;
+    await this.orderItemRepository.save(orderItem);
+
+    this.logger.log(`Updated issues for order item ${orderItemId}`);
+    return orderItem;
+  }
+
   async deleteOrderItem(orderItemId: string): Promise<{ message: string }> {
     const orderItem = await this.orderItemRepository.findOne({
       where: { id: orderItemId },

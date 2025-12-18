@@ -120,6 +120,14 @@ export class OrderItemDataDto {
   @IsString()
   @IsOptional()
   orderStatus?: string;
+
+  @ApiPropertyOptional({
+    description: 'Issues or notes related to the order item',
+    example: 'Quality issue: Stitching defect found',
+  })
+  @IsString()
+  @IsOptional()
+  issues?: string;
 }
 export class VisibilityStatusDto {
   @ApiProperty({
