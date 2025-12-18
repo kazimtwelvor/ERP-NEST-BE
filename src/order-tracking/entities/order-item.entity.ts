@@ -141,6 +141,18 @@ export class OrderItem {
   })
   visibilityStatus: { roleIds: string[]; roleNames: string[] } | null;
 
+  @ApiProperty({ 
+    description: 'Issues or notes related to the order item',
+    example: 'Quality issue: Stitching defect found',
+    nullable: true
+  })
+  @Column({
+    type: 'text',
+    nullable: true,
+    name: 'issues'
+  })
+  issues: string | null;
+
   @ApiProperty({ description: 'Order item creation timestamp' })
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
