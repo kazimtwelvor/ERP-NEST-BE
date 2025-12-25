@@ -14,6 +14,7 @@ import configuration from './config/configuration';
 import { AuthModule } from './auth/auth.module';
 import { OrderTrackingModule } from './order-tracking/order-tracking.module';
 import { PermissionsGuard } from './auth/guards/permissions.guard';
+import { InventoryModule } from './inventory/inventory.module';
 
 
 
@@ -41,6 +42,7 @@ import { PermissionsGuard } from './auth/guards/permissions.guard';
     DepartmentModule,
     AuthModule,
     OrderTrackingModule,
+    InventoryModule,
   ],
   controllers: [AppController],
   providers: [

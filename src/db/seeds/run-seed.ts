@@ -8,6 +8,8 @@ import { OrderStatus } from '../../order-tracking/entities/order-status.entity';
 import { RoleVisibility } from '../../role-permission/entities/role-visibility.entity';
 import { OrderItem } from '../../order-tracking/entities/order-item.entity';
 import { OrderItemTracking } from '../../order-tracking/entities/order-item-tracking.entity';
+import { Product } from '../../inventory/entities/product.entity';
+import { InventoryItem } from '../../inventory/entities/inventory-item.entity';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -40,7 +42,7 @@ async function bootstrap() {
     username: process.env.DB_USERNAME || 'postgres',
     password: process.env.DB_PASSWORD || 'postgres',
     database: process.env.DB_DATABASE || 'erp_database',
-    entities: [User, Role, Permission, Department, OrderStatus, RoleVisibility, OrderItem, OrderItemTracking],
+    entities: [User, Role, Permission, Department, OrderStatus, RoleVisibility, OrderItem, OrderItemTracking, Product, InventoryItem],
     synchronize: false,
     logging: isDevelopment,
   });
