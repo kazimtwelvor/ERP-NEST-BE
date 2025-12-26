@@ -8,6 +8,8 @@ import { OrderItem } from '../order-tracking/entities/order-item.entity';
 import { OrderItemTracking } from '../order-tracking/entities/order-item-tracking.entity';
 import { OrderStatus } from '../order-tracking/entities/order-status.entity';
 import { RoleVisibility } from '../role-permission/entities/role-visibility.entity';
+import { Product } from '../inventory/entities/product.entity';
+import { InventoryItem } from '../inventory/entities/inventory-item.entity';
 
 export const getDatabaseConfig = (
   configService: ConfigService,
@@ -30,7 +32,7 @@ export const getDatabaseConfig = (
     username: configService.get<string>('DB_USERNAME', 'postgres'),
     password: configService.get<string>('DB_PASSWORD', 'postgres'),
     database: configService.get<string>('DB_DATABASE', 'erp_database'),
-    entities: [User, Role, Permission, Department, OrderItem, OrderItemTracking, OrderStatus, RoleVisibility],
+    entities: [User, Role, Permission, Department, OrderItem, OrderItemTracking, OrderStatus, RoleVisibility, Product, InventoryItem],
     synchronize:
       dbSynchronize !== undefined
         ? dbSynchronize === 'true'

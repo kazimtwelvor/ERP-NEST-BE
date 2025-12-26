@@ -31,6 +31,13 @@ export enum AccessPermissions {
   UpdateOrder = 'order.update',
   DeleteOrder = 'order.delete',
   ManageOrder = 'order.manage',
+
+  // Inventory permissions
+  ReadInventory = 'inventory.read',
+  CreateInventory = 'inventory.create',
+  UpdateInventory = 'inventory.update',
+  DeleteInventory = 'inventory.delete',
+  ManageInventory = 'inventory.manage',
 }
 
 
