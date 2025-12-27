@@ -740,15 +740,18 @@ export class OrderTrackingService {
     const skip = (page - 1) * limit;
 
     const where: FindOptionsWhere<OrderItemTracking> = {};
+    let resolvedOrderItemId: string | undefined = getHistoryDto.orderItemId;
 
     if (getHistoryDto.orderItemId) {
       where.orderItemId = getHistoryDto.orderItemId;
+      resolvedOrderItemId = getHistoryDto.orderItemId;
     } else if (getHistoryDto.qrCode) {
       const orderItem = await this.orderItemRepository.findOne({
         where: { qrCode: getHistoryDto.qrCode },
       });
       if (orderItem) {
         where.orderItemId = orderItem.id;
+        resolvedOrderItemId = orderItem.id;
       } else {
         // Return empty result if QR code not found
         return {
@@ -765,22 +768,57 @@ export class OrderTrackingService {
       where.departmentId = getHistoryDto.departmentId;
     }
 
-    // If visibility filtering is needed, fetch more items to account for filtering
+    // If visibility filtering or storeName filtering is needed, fetch more items to account for filtering
     const fetchLimit =
       getHistoryDto.roleId ||
       getHistoryDto.roleName ||
       getHistoryDto.roleIds ||
-      getHistoryDto.roleNames
-        ? limit * 5 // Fetch 5x more if filtering by visibility
+      getHistoryDto.roleNames ||
+      getHistoryDto.storeName
+        ? limit * 5 // Fetch 5x more if filtering by visibility or storeName
         : limit;
 
-    const [allData, total] = await this.trackingRepository.findAndCount({
-      where,
-      relations: ['orderItem', 'department', 'user'],
-      order: { createdAt: 'DESC' },
-      skip: 0, // Start from beginning when filtering
-      take: fetchLimit,
-    });
+    // Use query builder if storeName filter is provided (to filter by related orderItem.storeName)
+    let allData: OrderItemTracking[];
+    let total: number;
+
+    if (getHistoryDto.storeName) {
+      const queryBuilder = this.trackingRepository
+        .createQueryBuilder('tracking')
+        .leftJoinAndSelect('tracking.orderItem', 'orderItem')
+        .leftJoinAndSelect('tracking.department', 'department')
+        .leftJoinAndSelect('tracking.user', 'user')
+        .where('orderItem.storeName = :storeName', {
+          storeName: getHistoryDto.storeName,
+        });
+
+      // Apply other where conditions
+      if (resolvedOrderItemId) {
+        queryBuilder.andWhere('tracking.orderItemId = :orderItemId', {
+          orderItemId: resolvedOrderItemId,
+        });
+      }
+
+      if (getHistoryDto.departmentId) {
+        queryBuilder.andWhere('tracking.departmentId = :departmentId', {
+          departmentId: getHistoryDto.departmentId,
+        });
+      }
+
+      queryBuilder.orderBy('tracking.createdAt', 'DESC').take(fetchLimit);
+
+      allData = await queryBuilder.getMany();
+      total = await queryBuilder.getCount();
+    } else {
+      // Use standard findAndCount when no storeName filter
+      [allData, total] = await this.trackingRepository.findAndCount({
+        where,
+        relations: ['orderItem', 'department', 'user'],
+        order: { createdAt: 'DESC' },
+        skip: 0, // Start from beginning when filtering
+        take: fetchLimit,
+      });
+    }
 
     // Filter by visibility if role filters are provided
     let filteredData = allData;
