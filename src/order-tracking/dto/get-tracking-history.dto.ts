@@ -35,6 +35,14 @@ export class GetTrackingHistoryDto {
   departmentId?: string;
 
   @ApiPropertyOptional({
+    description: 'Store name to filter by',
+    example: 'fineyst-jackets',
+  })
+  @IsString()
+  @IsOptional()
+  storeName?: string;
+
+  @ApiPropertyOptional({
     description: 'Role ID to filter by visibility (user must have this role to see items)',
     example: '123e4567-e89b-12d3-a456-426614174000',
   })
