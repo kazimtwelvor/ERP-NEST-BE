@@ -4,7 +4,6 @@ import {
   IsUUID,
   IsInt,
   Min,
-  Max,
   IsArray,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -116,12 +115,10 @@ export class GetTrackingHistoryDto {
     description: 'Number of items per page',
     default: 10,
     minimum: 1,
-    maximum: 100,
   })
   @Type(() => Number)
   @IsInt({ message: 'Limit must be an integer' })
   @Min(1, { message: 'Limit must be at least 1' })
-  @Max(100, { message: 'Limit must not exceed 100' })
   @IsOptional()
   limit?: number = 10;
 }
