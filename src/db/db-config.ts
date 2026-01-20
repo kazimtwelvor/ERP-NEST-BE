@@ -10,6 +10,7 @@ import { OrderStatus } from '../order-tracking/entities/order-status.entity';
 import { RoleVisibility } from '../role-permission/entities/role-visibility.entity';
 import { Product } from '../inventory/entities/product.entity';
 import { InventoryItem } from '../inventory/entities/inventory-item.entity';
+import { PatchOrder } from '../patch-order/entities/patch-order.entity';
 
 export const getDatabaseConfig = (
   configService: ConfigService,
@@ -32,13 +33,22 @@ export const getDatabaseConfig = (
     username: configService.get<string>('DB_USERNAME', 'postgres'),
     password: configService.get<string>('DB_PASSWORD', 'postgres'),
     database: configService.get<string>('DB_DATABASE', 'erp_database'),
-    entities: [User, Role, Permission, Department, OrderItem, OrderItemTracking, OrderStatus, RoleVisibility, Product, InventoryItem],
+    entities: [
+      User,
+      Role,
+      Permission,
+      Department,
+      OrderItem,
+      OrderItemTracking,
+      OrderStatus,
+      RoleVisibility,
+      Product,
+      InventoryItem,
+      PatchOrder,
+    ],
     synchronize:
-      dbSynchronize !== undefined
-        ? dbSynchronize === 'true'
-        : isDevelopment,
-    logging:
-      dbLogging !== undefined ? dbLogging === 'true' : isDevelopment,
+      dbSynchronize !== undefined ? dbSynchronize === 'true' : isDevelopment,
+    logging: dbLogging !== undefined ? dbLogging === 'true' : isDevelopment,
     ssl:
       isProduction || dbSsl === 'true'
         ? {
@@ -52,15 +62,8 @@ export const getDatabaseConfig = (
         'DB_CONNECTION_TIMEOUT',
         30000,
       ),
-      idleTimeoutMillis: configService.get<number>(
-        'DB_IDLE_TIMEOUT',
-        30000,
-      ),
-      query_timeout: configService.get<number>(
-        'DB_QUERY_TIMEOUT',
-        60000,
-      ),
+      idleTimeoutMillis: configService.get<number>('DB_IDLE_TIMEOUT', 30000),
+      query_timeout: configService.get<number>('DB_QUERY_TIMEOUT', 60000),
     },
   };
 };
-
