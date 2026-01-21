@@ -60,5 +60,21 @@ export class CreatePatchOrderDto {
   @IsOptional()
   image?: string;
 
+  @ApiPropertyOptional({ description: 'QR code data for scanning' })
+  @IsOptional()
+  qrCode?: string;
+
+  @ApiPropertyOptional({ description: 'QR code URL for scanning' })
+  @IsOptional()
+  qrCodeUrl?: string;
+
+  @ApiPropertyOptional({ description: 'Status (pending or production)', default: 'pending' })
+  @IsOptional()
+  status?: string;
+
+  @ApiPropertyOptional({ description: 'Order status' })
+  @IsOptional()
+  orderStatus?: string;
+
   
 }

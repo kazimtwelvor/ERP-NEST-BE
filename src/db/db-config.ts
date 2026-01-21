@@ -11,6 +11,7 @@ import { RoleVisibility } from '../role-permission/entities/role-visibility.enti
 import { Product } from '../inventory/entities/product.entity';
 import { InventoryItem } from '../inventory/entities/inventory-item.entity';
 import { PatchOrder } from '../patch-order/entities/patch-order.entity';
+import { PatchOrderTracking } from '../patch-order/entities/patch-order-tracking.entity';
 
 export const getDatabaseConfig = (
   configService: ConfigService,
@@ -45,6 +46,7 @@ export const getDatabaseConfig = (
       Product,
       InventoryItem,
       PatchOrder,
+      PatchOrderTracking,
     ],
     synchronize:
       dbSynchronize !== undefined ? dbSynchronize === 'true' : isDevelopment,

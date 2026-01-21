@@ -88,6 +88,13 @@ export class PatchOrder {
   @Column({ type: 'text', nullable: true })
   image?: string | null;
 
+  @ApiProperty({ description: 'QR code data for scanning', example: 'PATCH_ORDER_UUID_HASH' })
+  @Column({ name: 'qr_code', unique: true, nullable: true })
+  qrCode: string;
+
+  @ApiProperty({ description: 'QR code URL for scanning', example: 'https://example.com/patch-orders?patchOrderId=uuid' })
+  @Column({ name: 'qr_code_url', type: 'text', nullable: true })
+  qrCodeUrl: string | null;
 
    @ApiProperty({ 
     description: 'Current status (can be pending or production)',

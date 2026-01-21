@@ -10,6 +10,7 @@ import { RoleVisibility } from '../role-permission/entities/role-visibility.enti
 import { Product } from '../inventory/entities/product.entity';
 import { InventoryItem } from '../inventory/entities/inventory-item.entity';
 import { PatchOrder } from '../patch-order/entities/patch-order.entity';
+import { PatchOrderTracking } from '../patch-order/entities/patch-order-tracking.entity';
 
 try {
   require('dotenv').config();
@@ -34,6 +35,7 @@ export const dataSourceOptions: DataSourceOptions = {
     Product,
     InventoryItem,
     PatchOrder,
+    PatchOrderTracking,
   ],
   migrations: ['src/db/migrations/*.ts'],
   synchronize: false,

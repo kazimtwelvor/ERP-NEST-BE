@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Brackets } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
+import * as crypto from 'crypto';
 import { PatchOrder } from './entities/patch-order.entity';
 import { CreatePatchOrderDto } from './dto/create-patch-order.dto';
 import { UpdatePatchOrderDto } from './dto/update-patch-order.dto';
@@ -16,7 +18,18 @@ export class PatchOrderService {
   constructor(
     @InjectRepository(PatchOrder)
     private readonly patchOrderRepository: Repository<PatchOrder>,
+    private readonly configService: ConfigService,
   ) {}
+
+  private generateQRCodeUrl(patchOrderId: string): string {
+    const frontendUrl =
+      this.configService.get<string>('frontendUrl') ||
+      process.env.FRONTEND_URL ||
+      'http://localhost:3000';
+
+    const baseUrl = frontendUrl.replace(/\/$/, '');
+    return `${baseUrl}/patch-orders?patchOrderId=${patchOrderId}`;
+  }
 
   async create(
     createPatchOrderDto: CreatePatchOrderDto,
@@ -175,6 +188,14 @@ export class PatchOrderService {
     }
 
     patchOrder.status = updateStatusDto.status;
+
+    // Generate QR code when status changes to production
+    if (updateStatusDto.status === 'production' && !patchOrder.qrCode) {
+      const hash = crypto.randomBytes(16).toString('hex');
+      patchOrder.qrCode = `PATCH_ORDER_${patchOrder.id}_${hash}`;
+      patchOrder.qrCodeUrl = this.generateQRCodeUrl(patchOrder.id);
+    }
+
     const updated = await this.patchOrderRepository.save(patchOrder);
 
     return {

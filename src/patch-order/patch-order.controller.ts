@@ -146,33 +146,6 @@ export class PatchOrderController {
     return this.patchOrderService.findOne(id);
   }
 
-  @Patch(':id')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Update a patch order' })
-  @ApiParam({ name: 'id', description: 'Patch order ID (UUID)' })
-  @ApiResponse({
-    status: 200,
-    description: PATCH_ORDER_MESSAGES.UPDATED,
-    type: PatchOrder,
-  })
-  @ApiResponse({ status: 404, description: PATCH_ORDER_MESSAGES.NOT_FOUND })
-  async update(
-    @Param('id') id: string,
-    @Body() updatePatchOrderDto: UpdatePatchOrderDto,
-  ) {
-    return this.patchOrderService.update(id, updatePatchOrderDto);
-  }
-
-  @Delete(':id')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Delete a patch order' })
-  @ApiParam({ name: 'id', description: 'Patch order ID (UUID)' })
-  @ApiResponse({ status: 200, description: PATCH_ORDER_MESSAGES.DELETED })
-  @ApiResponse({ status: 404, description: PATCH_ORDER_MESSAGES.NOT_FOUND })
-  async remove(@Param('id') id: string) {
-    return this.patchOrderService.remove(id);
-  }
-
   @Patch(':id/status')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Update patch order status' })
@@ -205,5 +178,32 @@ export class PatchOrderController {
     @Body() updateOrderStatusDto: UpdateOrderStatusDto,
   ) {
     return this.patchOrderService.updateOrderStatus(id, updateOrderStatusDto);
+  }
+
+  @Patch(':id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update a patch order' })
+  @ApiParam({ name: 'id', description: 'Patch order ID (UUID)' })
+  @ApiResponse({
+    status: 200,
+    description: PATCH_ORDER_MESSAGES.UPDATED,
+    type: PatchOrder,
+  })
+  @ApiResponse({ status: 404, description: PATCH_ORDER_MESSAGES.NOT_FOUND })
+  async update(
+    @Param('id') id: string,
+    @Body() updatePatchOrderDto: UpdatePatchOrderDto,
+  ) {
+    return this.patchOrderService.update(id, updatePatchOrderDto);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete a patch order' })
+  @ApiParam({ name: 'id', description: 'Patch order ID (UUID)' })
+  @ApiResponse({ status: 200, description: PATCH_ORDER_MESSAGES.DELETED })
+  @ApiResponse({ status: 404, description: PATCH_ORDER_MESSAGES.NOT_FOUND })
+  async remove(@Param('id') id: string) {
+    return this.patchOrderService.remove(id);
   }
 }
