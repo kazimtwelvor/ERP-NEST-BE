@@ -5,6 +5,8 @@ import { PatchOrder } from './entities/patch-order.entity';
 import { CreatePatchOrderDto } from './dto/create-patch-order.dto';
 import { UpdatePatchOrderDto } from './dto/update-patch-order.dto';
 import { GetPatchOrdersDto } from './dto/get-patch-orders.dto';
+import { UpdateStatusDto } from './dto/update-status.dto';
+import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { PATCH_ORDER_MESSAGES } from './messages/patch-order.messages';
 import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
 import { SortEnum } from '../common/dto/pagination.dto';
@@ -157,6 +159,48 @@ export class PatchOrderService {
 
     return {
       message: PATCH_ORDER_MESSAGES.DELETED,
+    };
+  }
+
+  async updateStatus(
+    id: string,
+    updateStatusDto: UpdateStatusDto,
+  ): Promise<{ patchOrder: PatchOrder; message: string }> {
+    const patchOrder = await this.patchOrderRepository.findOne({
+      where: { id },
+    });
+
+    if (!patchOrder) {
+      throw new NotFoundException(PATCH_ORDER_MESSAGES.NOT_FOUND);
+    }
+
+    patchOrder.status = updateStatusDto.status;
+    const updated = await this.patchOrderRepository.save(patchOrder);
+
+    return {
+      patchOrder: updated,
+      message: PATCH_ORDER_MESSAGES.STATUS_UPDATED,
+    };
+  }
+
+  async updateOrderStatus(
+    id: string,
+    updateOrderStatusDto: UpdateOrderStatusDto,
+  ): Promise<{ patchOrder: PatchOrder; message: string }> {
+    const patchOrder = await this.patchOrderRepository.findOne({
+      where: { id },
+    });
+
+    if (!patchOrder) {
+      throw new NotFoundException(PATCH_ORDER_MESSAGES.NOT_FOUND);
+    }
+
+    patchOrder.orderStatus = updateOrderStatusDto.orderStatus;
+    const updated = await this.patchOrderRepository.save(patchOrder);
+
+    return {
+      patchOrder: updated,
+      message: PATCH_ORDER_MESSAGES.ORDER_STATUS_UPDATED,
     };
   }
 }

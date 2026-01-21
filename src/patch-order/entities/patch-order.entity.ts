@@ -88,6 +88,31 @@ export class PatchOrder {
   @Column({ type: 'text', nullable: true })
   image?: string | null;
 
+
+   @ApiProperty({ 
+    description: 'Current status (can be pending or production)',
+    example: 'production',
+    default: 'pending'
+  })
+  @Column({
+    type: 'varchar',
+    default: 'pending',
+    name: 'status'
+  })
+  status: string;
+
+  @ApiProperty({ 
+    description: 'Order status',
+    example: 'sample_approved',
+    nullable: true
+  })
+  @Column({
+    type: 'varchar',
+    nullable: true,
+    name: 'order_status'
+  })
+  orderStatus: string | null;
+
   @ApiProperty({ description: 'Record creation timestamp' })
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

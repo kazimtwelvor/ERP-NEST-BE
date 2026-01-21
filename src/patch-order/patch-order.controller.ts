@@ -26,6 +26,8 @@ import type { File } from 'multer';
 import { PatchOrderService } from './patch-order.service';
 import { CreatePatchOrderDto } from './dto/create-patch-order.dto';
 import { UpdatePatchOrderDto } from './dto/update-patch-order.dto';
+import { UpdateStatusDto } from './dto/update-status.dto';
+import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { GetPatchOrdersDto } from './dto/get-patch-orders.dto';
 import { PatchOrder } from './entities/patch-order.entity';
 import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
@@ -169,5 +171,39 @@ export class PatchOrderController {
   @ApiResponse({ status: 404, description: PATCH_ORDER_MESSAGES.NOT_FOUND })
   async remove(@Param('id') id: string) {
     return this.patchOrderService.remove(id);
+  }
+
+  @Patch(':id/status')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update patch order status' })
+  @ApiParam({ name: 'id', description: 'Patch order ID (UUID)' })
+  @ApiResponse({
+    status: 200,
+    description: PATCH_ORDER_MESSAGES.STATUS_UPDATED,
+    type: PatchOrder,
+  })
+  @ApiResponse({ status: 404, description: PATCH_ORDER_MESSAGES.NOT_FOUND })
+  async updateStatus(
+    @Param('id') id: string,
+    @Body() updateStatusDto: UpdateStatusDto,
+  ) {
+    return this.patchOrderService.updateStatus(id, updateStatusDto);
+  }
+
+  @Patch(':id/order-status')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update patch order order status' })
+  @ApiParam({ name: 'id', description: 'Patch order ID (UUID)' })
+  @ApiResponse({
+    status: 200,
+    description: PATCH_ORDER_MESSAGES.ORDER_STATUS_UPDATED,
+    type: PatchOrder,
+  })
+  @ApiResponse({ status: 404, description: PATCH_ORDER_MESSAGES.NOT_FOUND })
+  async updateOrderStatus(
+    @Param('id') id: string,
+    @Body() updateOrderStatusDto: UpdateOrderStatusDto,
+  ) {
+    return this.patchOrderService.updateOrderStatus(id, updateOrderStatusDto);
   }
 }

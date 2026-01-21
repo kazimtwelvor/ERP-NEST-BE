@@ -5,4 +5,6 @@ export const PATCH_ORDER_MESSAGES = {
   UPDATED: 'Patch order updated successfully',
   DELETED: 'Patch order deleted successfully',
   NOT_FOUND: 'Patch order not found',
+  STATUS_UPDATED: 'Status updated successfully',
+  ORDER_STATUS_UPDATED: 'Order status updated successfully',
 };
