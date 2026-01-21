@@ -4,6 +4,7 @@ import { Repository, Brackets } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { PatchOrder } from './entities/patch-order.entity';
+import { PatchOrderTracking } from './entities/patch-order-tracking.entity';
 import { CreatePatchOrderDto } from './dto/create-patch-order.dto';
 import { UpdatePatchOrderDto } from './dto/update-patch-order.dto';
 import { GetPatchOrdersDto } from './dto/get-patch-orders.dto';
@@ -18,6 +19,8 @@ export class PatchOrderService {
   constructor(
     @InjectRepository(PatchOrder)
     private readonly patchOrderRepository: Repository<PatchOrder>,
+    @InjectRepository(PatchOrderTracking)
+    private readonly patchOrderTrackingRepository: Repository<PatchOrderTracking>,
     private readonly configService: ConfigService,
   ) {}
 
@@ -222,6 +225,28 @@ export class PatchOrderService {
     return {
       patchOrder: updated,
       message: PATCH_ORDER_MESSAGES.ORDER_STATUS_UPDATED,
+    };
+  }
+
+  async getTrackingHistory(patchOrderId: string) {
+    const patchOrder = await this.patchOrderRepository.findOne({
+      where: { id: patchOrderId },
+    });
+
+    if (!patchOrder) {
+      throw new NotFoundException(PATCH_ORDER_MESSAGES.NOT_FOUND);
+    }
+
+    const tracking = await this.patchOrderTrackingRepository.find({
+      where: { patchOrderId },
+      relations: ['department', 'user'],
+      order: { createdAt: 'DESC' },
+    });
+
+    return {
+      message: 'Tracking history fetched successfully',
+      data: tracking,
+      patchOrder,
     };
   }
 }

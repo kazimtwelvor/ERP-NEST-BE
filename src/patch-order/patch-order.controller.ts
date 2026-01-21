@@ -115,6 +115,19 @@ export class PatchOrderController {
     return this.patchOrderService.findAll(getPatchOrdersDto);
   }
 
+  @Get('tracking-history/:patchOrderId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get tracking history for a patch order' })
+  @ApiParam({ name: 'patchOrderId', description: 'Patch order ID (UUID)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Tracking history fetched successfully',
+  })
+  @ApiResponse({ status: 404, description: PATCH_ORDER_MESSAGES.NOT_FOUND })
+  async getTrackingHistory(@Param('patchOrderId') patchOrderId: string) {
+    return this.patchOrderService.getTrackingHistory(patchOrderId);
+  }
+
   @Get('order/:orderId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get a patch order by external order ID' })
