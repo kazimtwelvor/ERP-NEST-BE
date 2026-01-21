@@ -553,7 +553,14 @@ export class OrderTrackingService {
 
     // Handle patch orders separately (they don't have tracking)
     if (orderItemPatch && !orderItem) {
-      const previousOrderStatus = orderItemPatch.orderStatus;
+      // Get the last tracking record to determine previous status
+      const lastTracking = await this.patchOrderTrackingRepository.findOne({
+        where: { patchOrderId: orderItemPatch.id },
+        order: { createdAt: 'DESC' },
+      });
+      
+      const previousOrderStatus = lastTracking ? lastTracking.status : orderItemPatch.orderStatus;
+      const newOrderStatus = updateStatusDto.orderStatus || orderItemPatch.orderStatus || 'pending';
       
       // Update patch order status
       if (updateStatusDto.orderStatus) {
@@ -566,9 +573,9 @@ export class OrderTrackingService {
         patchOrderId: orderItemPatch.id,
         departmentId: updateStatusDto.departmentId,
         userId: user.id,
-        status: updateStatusDto.orderStatus || orderItemPatch.orderStatus || 'pending',
+        status: newOrderStatus,
         previousStatus: previousOrderStatus || undefined,
-        notes: updateStatusDto.notes || `Patch order status updated: ${previousOrderStatus || 'null'} → ${updateStatusDto.orderStatus || 'null'}`,
+        notes: updateStatusDto.notes || `Patch order status updated: ${previousOrderStatus || 'null'} → ${newOrderStatus}`,
       });
       await this.patchOrderTrackingRepository.save(patchTracking);
 
