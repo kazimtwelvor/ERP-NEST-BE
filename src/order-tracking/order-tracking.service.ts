@@ -4,6 +4,7 @@ import {
   BadRequestException,
   UnauthorizedException,
   Logger,
+  Patch,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere, In } from 'typeorm';
@@ -33,6 +34,8 @@ import {
   DepartmentStatus,
   StatusTransitions,
 } from './enums/department-status.enum';
+import { PatchOrder } from 'src/patch-order/entities/patch-order.entity';
+import { PatchOrderTracking } from 'src/patch-order/entities/patch-order-tracking.entity';
 
 @Injectable()
 export class OrderTrackingService {
@@ -51,6 +54,10 @@ export class OrderTrackingService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Role)
     private readonly roleRepository: Repository<Role>,
+    @InjectRepository(PatchOrder)
+    private readonly patchOrderRepository: Repository<PatchOrder>,
+    @InjectRepository(PatchOrderTracking)
+    private readonly patchOrderTrackingRepository: Repository<PatchOrderTracking>,
     @Inject(forwardRef(() => RolePermissionService))
     private readonly rolePermissionService: RolePermissionService,
     private readonly configService: ConfigService,
@@ -527,7 +534,11 @@ export class OrderTrackingService {
       where: { qrCode: updateStatusDto.qrCode },
     });
 
-    if (!orderItem) {
+    const orderItemPatch = await this.patchOrderRepository.findOne({
+      where: { qrCode: updateStatusDto.qrCode },
+    });
+
+    if (!orderItem && !orderItemPatch) {
       throw new NotFoundException(ORDER_TRACKING_MESSAGES.QR_CODE_NOT_FOUND);
     }
 
@@ -540,18 +551,44 @@ export class OrderTrackingService {
       throw new NotFoundException(ORDER_TRACKING_MESSAGES.DEPARTMENT_NOT_FOUND);
     }
 
-    // Validate status transition
-    const validTransitions: Record<string, string[]> = {
-      'checked-in': ['in-progress', 'checked-out'],
-      'in-progress': ['in-progress', 'checked-out'],
-      'checked-out': ['checked-in'],
-      pending: ['checked-in'],
-      completed: ['shipped'],
-      shipped: ['delivered'],
-      delivered: [], // Cannot transition from delivered
-    };
+    // Handle patch orders separately (they don't have tracking)
+    if (orderItemPatch && !orderItem) {
+      // Get the last tracking record to determine previous status
+      const lastTracking = await this.patchOrderTrackingRepository.findOne({
+        where: { patchOrderId: orderItemPatch.id },
+        order: { createdAt: 'DESC' },
+      });
+      
+      const previousOrderStatus = lastTracking ? lastTracking.status : orderItemPatch.orderStatus;
+      const newOrderStatus = updateStatusDto.orderStatus || orderItemPatch.orderStatus || 'pending';
+      
+      // Update patch order status
+      if (updateStatusDto.orderStatus) {
+        orderItemPatch.orderStatus = updateStatusDto.orderStatus;
+      }
+      await this.patchOrderRepository.save(orderItemPatch);
 
-    // All strict validations removed - allow any status update
+      // Create tracking record for patch order
+      const patchTracking = this.patchOrderTrackingRepository.create({
+        patchOrderId: orderItemPatch.id,
+        departmentId: updateStatusDto.departmentId,
+        userId: user.id,
+        status: newOrderStatus,
+        previousStatus: previousOrderStatus || undefined,
+        notes: updateStatusDto.notes || `Patch order status updated: ${previousOrderStatus || 'null'} → ${newOrderStatus}`,
+      });
+      await this.patchOrderTrackingRepository.save(patchTracking);
+
+      return {
+        tracking: null as any,
+        message: 'Patch order status updated successfully',
+      };
+    }
+
+    // At this point, orderItem must exist
+    if (!orderItem) {
+      throw new NotFoundException(ORDER_TRACKING_MESSAGES.QR_CODE_NOT_FOUND);
+    }
 
     // Store previous orderStatus to track changes
     const previousOrderStatus = orderItem.orderStatus;
@@ -1569,7 +1606,10 @@ export class OrderTrackingService {
    * Delete an order item by ID
    * This will also delete all associated tracking history due to CASCADE relationship
    */
-  async updateIssues(orderItemId: string, issues: string | null | undefined): Promise<OrderItem> {
+  async updateIssues(
+    orderItemId: string,
+    issues: string | null | undefined,
+  ): Promise<OrderItem> {
     const orderItem = await this.orderItemRepository.findOne({
       where: { id: orderItemId },
     });

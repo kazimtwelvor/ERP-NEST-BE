@@ -15,8 +15,7 @@ import { AuthModule } from './auth/auth.module';
 import { OrderTrackingModule } from './order-tracking/order-tracking.module';
 import { PermissionsGuard } from './auth/guards/permissions.guard';
 import { InventoryModule } from './inventory/inventory.module';
-
-
+import { PatchOrderModule } from './patch-order/patch-order.module';
 
 @Module({
   imports: [
@@ -43,6 +42,7 @@ import { InventoryModule } from './inventory/inventory.module';
     AuthModule,
     OrderTrackingModule,
     InventoryModule,
+    PatchOrderModule,
   ],
   controllers: [AppController],
   providers: [
@@ -54,4 +54,3 @@ import { InventoryModule } from './inventory/inventory.module';
   ],
 })
 export class AppModule {}
-  

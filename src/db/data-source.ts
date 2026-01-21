@@ -9,11 +9,12 @@ import { OrderStatus } from '../order-tracking/entities/order-status.entity';
 import { RoleVisibility } from '../role-permission/entities/role-visibility.entity';
 import { Product } from '../inventory/entities/product.entity';
 import { InventoryItem } from '../inventory/entities/inventory-item.entity';
+import { PatchOrder } from '../patch-order/entities/patch-order.entity';
+import { PatchOrderTracking } from '../patch-order/entities/patch-order-tracking.entity';
 
 try {
   require('dotenv').config();
-} catch {
-}
+} catch {}
 
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
@@ -22,10 +23,24 @@ export const dataSourceOptions: DataSourceOptions = {
   username: process.env.DB_USERNAME || 'postgres',
   password: process.env.DB_PASSWORD || 'postgres',
   database: process.env.DB_DATABASE || 'erp_database',
-  entities: [User, Role, Permission, Department, OrderItem, OrderItemTracking, OrderStatus, RoleVisibility, Product, InventoryItem],
+  entities: [
+    User,
+    Role,
+    Permission,
+    Department,
+    OrderItem,
+    OrderItemTracking,
+    OrderStatus,
+    RoleVisibility,
+    Product,
+    InventoryItem,
+    PatchOrder,
+    PatchOrderTracking,
+  ],
   migrations: ['src/db/migrations/*.ts'],
   synchronize: false,
-  logging: process.env.DB_LOGGING === 'true' || process.env.NODE_ENV === 'development',
+  logging:
+    process.env.DB_LOGGING === 'true' || process.env.NODE_ENV === 'development',
   // Only enable SSL in production or if explicitly set
   // For local development, explicitly disable SSL
   ssl:
@@ -37,7 +52,10 @@ export const dataSourceOptions: DataSourceOptions = {
       : false, // Explicitly disable SSL for local development
   extra: {
     max: parseInt(process.env.DB_MAX_CONNECTIONS || '10', 10),
-    connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT || '30000', 10),
+    connectionTimeoutMillis: parseInt(
+      process.env.DB_CONNECTION_TIMEOUT || '30000',
+      10,
+    ),
     idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT || '30000', 10),
     query_timeout: parseInt(process.env.DB_QUERY_TIMEOUT || '60000', 10),
   },
@@ -46,4 +64,3 @@ export const dataSourceOptions: DataSourceOptions = {
 const dataSource = new DataSource(dataSourceOptions);
 
 export default dataSource;
-
