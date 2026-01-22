@@ -37,7 +37,23 @@ export class PatchOrderService {
   async create(
     createPatchOrderDto: CreatePatchOrderDto,
   ): Promise<{ patchOrder: PatchOrder; message: string }> {
-    const patchOrder = this.patchOrderRepository.create(createPatchOrderDto);
+    const lastOrders = await this.patchOrderRepository.find({
+      order: { createdAt: 'DESC' },
+      select: ['orderNo'],
+      take: 1,
+    });
+
+    let orderNumber = 1;
+    if (lastOrders.length > 0 && lastOrders[0].orderNo) {
+      const lastNumber = parseInt(lastOrders[0].orderNo.replace('ORD_', ''));
+      orderNumber = lastNumber + 1;
+    }
+    const orderNo = `ORD_${orderNumber.toString().padStart(5, '0')}`;
+
+    const patchOrder = this.patchOrderRepository.create({
+      ...createPatchOrderDto,
+      orderNo,
+    });
     const saved = await this.patchOrderRepository.save(patchOrder);
 
     return {
