@@ -121,6 +121,62 @@ export class GetOrderItemsDto {
   @Min(1, { message: 'Limit must be at least 1' })
   @IsOptional()
   limit?: number = 10;
+
+  @ApiPropertyOptional({
+    description: 'Search term for product name, SKU, or external order ID',
+    example: 'jacket',
+  })
+  @IsString()
+  @IsOptional()
+  search?: string;
+
+  @ApiPropertyOptional({
+    description: 'Product name to search for',
+    example: 'Leather Jacket',
+  })
+  @IsString()
+  @IsOptional()
+  productName?: string;
+
+  @ApiPropertyOptional({
+    description: 'SKU to search for',
+    example: 'LJ-001',
+  })
+  @IsString()
+  @IsOptional()
+  sku?: string;
+
+  @ApiPropertyOptional({
+    description: 'Color to filter by',
+    example: 'black',
+  })
+  @IsString()
+  @IsOptional()
+  color?: string;
+
+  @ApiPropertyOptional({
+    description: 'Size to filter by',
+    example: 'M',
+  })
+  @IsString()
+  @IsOptional()
+  size?: string;
+
+  @ApiPropertyOptional({
+    description: 'External order ID to search for',
+    example: 'ORD-12345',
+  })
+  @IsString()
+  @IsOptional()
+  externalOrderId?: string;
+
+  @ApiPropertyOptional({
+    description: 'External item ID to search for',
+    example: 'ITEM-67890',
+  })
+  @IsString()
+  @IsOptional()
+  externalItemId?: string;
 }
 
 

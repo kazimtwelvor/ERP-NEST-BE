@@ -7,7 +7,7 @@ import {
   Patch,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindOptionsWhere, In } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Inject, forwardRef } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
@@ -1380,18 +1380,70 @@ export class OrderTrackingService {
     const limit = getOrderItemsDto.limit || 10;
     const skip = (page - 1) * limit;
 
-    const where: FindOptionsWhere<OrderItem> = {};
+    // Use query builder for complex search functionality
+    let query = this.orderItemRepository.createQueryBuilder('orderItem');
 
+    // Apply basic filters
     if (getOrderItemsDto.storeName) {
-      where.storeName = getOrderItemsDto.storeName;
+      query = query.andWhere('orderItem.storeName = :storeName', {
+        storeName: getOrderItemsDto.storeName,
+      });
     }
 
     if (getOrderItemsDto.status) {
-      where.currentStatus = getOrderItemsDto.status;
+      query = query.andWhere('orderItem.currentStatus = :status', {
+        status: getOrderItemsDto.status,
+      });
     }
 
     if (getOrderItemsDto.departmentId) {
-      where.currentDepartmentId = getOrderItemsDto.departmentId;
+      query = query.andWhere('orderItem.currentDepartmentId = :departmentId', {
+        departmentId: getOrderItemsDto.departmentId,
+      });
+    }
+
+    // Apply search filters
+    if (getOrderItemsDto.search) {
+      query = query.andWhere(
+        '(orderItem.productName ILIKE :search OR orderItem.sku ILIKE :search OR orderItem.externalOrderId ILIKE :search)',
+        { search: `%${getOrderItemsDto.search}%` },
+      );
+    }
+
+    if (getOrderItemsDto.productName) {
+      query = query.andWhere('orderItem.productName ILIKE :productName', {
+        productName: `%${getOrderItemsDto.productName}%`,
+      });
+    }
+
+    if (getOrderItemsDto.sku) {
+      query = query.andWhere('orderItem.sku ILIKE :sku', {
+        sku: `%${getOrderItemsDto.sku}%`,
+      });
+    }
+
+    if (getOrderItemsDto.color) {
+      query = query.andWhere('orderItem.color ILIKE :color', {
+        color: `%${getOrderItemsDto.color}%`,
+      });
+    }
+
+    if (getOrderItemsDto.size) {
+      query = query.andWhere('orderItem.size ILIKE :size', {
+        size: `%${getOrderItemsDto.size}%`,
+      });
+    }
+
+    if (getOrderItemsDto.externalOrderId) {
+      query = query.andWhere('orderItem.externalOrderId = :externalOrderId', {
+        externalOrderId: getOrderItemsDto.externalOrderId,
+      });
+    }
+
+    if (getOrderItemsDto.externalItemId) {
+      query = query.andWhere('orderItem.externalItemId = :externalItemId', {
+        externalItemId: getOrderItemsDto.externalItemId,
+      });
     }
 
     // If visibility filtering is needed, fetch more items to account for filtering
@@ -1403,12 +1455,15 @@ export class OrderTrackingService {
         ? limit * 5 // Fetch 5x more if filtering by visibility
         : limit;
 
-    const [allData, total] = await this.orderItemRepository.findAndCount({
-      where,
-      order: { createdAt: 'DESC' },
-      skip: 0, // Start from beginning when filtering
-      take: fetchLimit,
-    });
+    // Get total count
+    const total = await query.getCount();
+
+    // Apply ordering and pagination
+    const allData = await query
+      .orderBy('orderItem.createdAt', 'DESC')
+      .skip(0) // Start from beginning when filtering
+      .take(fetchLimit)
+      .getMany();
 
     // Filter by visibility if role filters are provided
     let filteredData = allData;
