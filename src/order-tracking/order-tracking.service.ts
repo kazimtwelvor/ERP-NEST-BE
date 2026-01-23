@@ -7,7 +7,7 @@ import {
   Patch,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, FindOptionsWhere, In } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Inject, forwardRef } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
