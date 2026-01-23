@@ -265,4 +265,59 @@ export class PatchOrderService {
       patchOrder,
     };
   }
+
+  /**
+   * Get abandoned patch orders
+   * A patch order is considered abandoned if:
+   * 1. It has not been updated for the specified threshold (default: 48 hours)
+   * 2. Its current status is NOT 'completed' or 'cancelled'
+   */
+  async getAbandonedPatchOrders(
+    page: number = 1,
+    limit: number = 10,
+    formType?: string,
+    thresholdHours: number = 48,
+    sortBy: string = 'updated_at',
+    sortOrder: 'asc' | 'desc' = 'asc',
+  ): Promise<PaginatedResponse<PatchOrder>> {
+    // Calculate the cutoff time (48 hours ago or custom threshold)
+    const now = new Date();
+    const cutoffTime = new Date(now.getTime() - thresholdHours * 60 * 60 * 1000);
+
+    // Build the query
+    let query = this.patchOrderRepository
+      .createQueryBuilder('patchOrder')
+      .where('patchOrder.updated_at <= :cutoffTime', { cutoffTime })
+      .andWhere('patchOrder.status NOT IN (:...completedStatuses)', {
+        completedStatuses: ['completed', 'cancelled'],
+      });
+
+    // Apply form type filter if provided
+    if (formType) {
+      query = query.andWhere('patchOrder.form_type = :formType', { formType });
+    }
+
+    // Get total count for pagination
+    const total = await query.getCount();
+    const lastPage = Math.ceil(total / limit);
+
+    // Apply sorting and pagination
+    const validSortFields = ['updated_at', 'created_at', 'orderNo', 'customerName'];
+    const sortField = validSortFields.includes(sortBy) ? sortBy : 'updated_at';
+    const orderDirection = sortOrder.toLowerCase() === 'desc' ? 'DESC' : 'ASC';
+
+    const data = await query
+      .orderBy(`patchOrder.${sortField}`, orderDirection)
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getMany();
+
+    return {
+      message: PATCH_ORDER_MESSAGES.ABANDONED_FETCHED,
+      data,
+      page,
+      total,
+      lastPage,
+    };
+  }
 }

@@ -7,4 +7,5 @@ export const PATCH_ORDER_MESSAGES = {
   NOT_FOUND: 'Patch order not found',
   STATUS_UPDATED: 'Status updated successfully',
   ORDER_STATUS_UPDATED: 'Order status updated successfully',
+  ABANDONED_FETCHED: 'Abandoned patch orders retrieved successfully',
 };

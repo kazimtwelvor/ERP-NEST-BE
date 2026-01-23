@@ -29,6 +29,7 @@ import { UpdatePatchOrderDto } from './dto/update-patch-order.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { GetPatchOrdersDto } from './dto/get-patch-orders.dto';
+import { GetAbandonedPatchOrdersDto } from './dto/get-abandoned-patch-orders.dto';
 import { PatchOrder } from './entities/patch-order.entity';
 import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
 import { PATCH_ORDER_MESSAGES } from './messages/patch-order.messages';
@@ -143,6 +144,42 @@ export class PatchOrderController {
   @ApiResponse({ status: 404, description: PATCH_ORDER_MESSAGES.NOT_FOUND })
   async findByOrderId(@Param('orderId') orderId: string) {
     return this.patchOrderService.findByOrderId(orderId);
+  }
+
+  @Get('abandoned-patch-orders')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ 
+    summary: 'Get all abandoned patch orders',
+    description: 'Retrieves patch orders that have not been updated for 48 hours (or custom threshold) and are not in completed or cancelled status. These are classified as abandoned orders that require attention.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: PATCH_ORDER_MESSAGES.ABANDONED_FETCHED,
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        data: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/PatchOrder' },
+        },
+        page: { type: 'number' },
+        total: { type: 'number' },
+        lastPage: { type: 'number' },
+      },
+    },
+  })
+  async getAbandonedPatchOrders(
+    @Query() getAbandonedPatchOrdersDto: GetAbandonedPatchOrdersDto,
+  ): Promise<PaginatedResponse<PatchOrder>> {
+    return this.patchOrderService.getAbandonedPatchOrders(
+      getAbandonedPatchOrdersDto.page,
+      getAbandonedPatchOrdersDto.limit,
+      getAbandonedPatchOrdersDto.formType,
+      getAbandonedPatchOrdersDto.thresholdHours,
+      getAbandonedPatchOrdersDto.sortBy,
+      getAbandonedPatchOrdersDto.sortOrder,
+    );
   }
 
   @Get(':id')
