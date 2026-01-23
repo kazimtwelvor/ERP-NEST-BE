@@ -24,6 +24,7 @@ import { UpdateStatusDto } from './dto/update-status.dto';
 import { GetTrackingHistoryDto } from './dto/get-tracking-history.dto';
 import { GetOrderItemsDto } from './dto/get-order-items.dto';
 import { GetOrderItemStatusesDto } from './dto/get-order-item-statuses.dto';
+import { GetAbandonedOrdersDto } from './dto/get-abandoned-orders.dto';
 import { SyncOrdersDto } from './dto/sync-orders.dto';
 import { CustomSyncOrderItemsDto } from './dto/custom-sync-order-items.dto';
 import { ReturnToStageDto } from './dto/return-to-stage.dto';
@@ -379,6 +380,85 @@ export class OrderTrackingController {
   })
   async deleteOrderItem(@Param('orderItemId') orderItemId: string) {
     return this.orderTrackingService.deleteOrderItem(orderItemId);
+  }
+
+  @Get('abandoned-orders')
+  @Permissions(AccessPermissions.ReadOrder)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ 
+    summary: 'Get all abandoned order items',
+    description: 'Retrieves order items that have not been updated for 48 hours (or custom threshold) and are not in completed or cancelled status. These are classified as abandoned orders that require attention.',
+  })
+  @ApiQuery({ 
+    name: 'page', 
+    required: false, 
+    type: Number,
+    description: 'Page number (1-based)',
+    example: 1,
+  })
+  @ApiQuery({ 
+    name: 'limit', 
+    required: false, 
+    type: Number,
+    description: 'Number of records per page',
+    example: 10,
+  })
+  @ApiQuery({ 
+    name: 'storeName', 
+    required: false, 
+    type: String,
+    description: 'Store name to filter abandoned orders',
+    example: 'fineyst-jackets',
+  })
+  @ApiQuery({ 
+    name: 'thresholdHours', 
+    required: false, 
+    type: Number,
+    description: 'Number of hours to consider as abandonment threshold (default: 48 hours)',
+    example: 48,
+  })
+  @ApiQuery({ 
+    name: 'sortBy', 
+    required: false, 
+    type: String,
+    description: 'Sort by field (updated_at, created_at, externalOrderId, storeName)',
+    example: 'updated_at',
+  })
+  @ApiQuery({ 
+    name: 'sortOrder', 
+    required: false, 
+    type: String,
+    description: 'Sort order (asc, desc)',
+    example: 'asc',
+  })
+  @ApiResponse({
+    status: 200,
+    description: ORDER_TRACKING_MESSAGES.ABANDONED_ORDERS_FETCHED,
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        data: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/OrderItem' },
+        },
+        page: { type: 'number' },
+        total: { type: 'number' },
+        lastPage: { type: 'number' },
+      },
+    },
+  })
+  async getAbandonedOrders(
+    @Query() getAbandonedOrdersDto: GetAbandonedOrdersDto,
+  ): Promise<PaginatedResponse<OrderItem>> {
+    return this.orderTrackingService.getAbandonedOrders(
+      getAbandonedOrdersDto.page,
+      getAbandonedOrdersDto.limit,
+      getAbandonedOrdersDto.storeName,
+      getAbandonedOrdersDto.thresholdHours,
+      getAbandonedOrdersDto.sortBy,
+      getAbandonedOrdersDto.sortOrder,
+    );
   }
 }
 

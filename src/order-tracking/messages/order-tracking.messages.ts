@@ -16,5 +16,6 @@ export const ORDER_TRACKING_MESSAGES = {
   TRACKING_HISTORY_FETCHED: 'Tracking history fetched successfully',
   ORDER_ITEM_FETCHED: 'Order item fetched successfully',
   ORDER_ITEM_DELETED: 'Order item deleted successfully',
+  ABANDONED_ORDERS_FETCHED: 'Abandoned orders retrieved successfully',
 } as const;
 

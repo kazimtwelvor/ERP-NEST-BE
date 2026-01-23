@@ -1641,4 +1641,63 @@ export class OrderTrackingService {
       message: ORDER_TRACKING_MESSAGES.ORDER_ITEM_DELETED,
     };
   }
+
+  /**
+   * Get abandoned order items
+   * An order item is considered abandoned if:
+   * 1. It has not been updated for the specified threshold (default: 48 hours)
+   * 2. Its current status is NOT 'completed' or 'cancelled'
+   */
+  async getAbandonedOrders(
+    page: number = 1,
+    limit: number = 10,
+    storeName?: string,
+    thresholdHours: number = 48,
+    sortBy: string = 'updated_at',
+    sortOrder: 'asc' | 'desc' = 'asc',
+  ): Promise<PaginatedResponse<OrderItem>> {
+    // Calculate the cutoff time (48 hours ago or custom threshold)
+    const now = new Date();
+    const cutoffTime = new Date(now.getTime() - thresholdHours * 60 * 60 * 1000);
+
+    // Build the query
+    let query = this.orderItemRepository
+      .createQueryBuilder('orderItem')
+      .where('orderItem.updated_at <= :cutoffTime', { cutoffTime })
+      .andWhere('orderItem.current_status NOT IN (:...completedStatuses)', {
+        completedStatuses: ['completed', 'cancelled'],
+      });
+
+    // Apply store name filter if provided
+    if (storeName) {
+      query = query.andWhere('orderItem.store_name = :storeName', { storeName });
+    }
+
+    // Get total count for pagination
+    const total = await query.getCount();
+    const lastPage = Math.ceil(total / limit);
+
+    // Apply sorting and pagination
+    const validSortFields = ['updated_at', 'created_at', 'externalOrderId', 'storeName'];
+    const sortField = validSortFields.includes(sortBy) ? sortBy : 'updated_at';
+    const orderDirection = sortOrder.toLowerCase() === 'desc' ? 'DESC' : 'ASC';
+
+    const data = await query
+      .orderBy(`orderItem.${sortField}`, orderDirection)
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getMany();
+
+    this.logger.log(
+      `Retrieved ${data.length} abandoned orders (page ${page}, threshold: ${thresholdHours}h)`,
+    );
+
+    return {
+      message: ORDER_TRACKING_MESSAGES.ABANDONED_ORDERS_FETCHED,
+      data,
+      page,
+      total,
+      lastPage,
+    };
+  }
 }
