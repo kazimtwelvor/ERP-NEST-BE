@@ -89,6 +89,10 @@ export class PatchOrder {
   @Column({ type: 'varchar', nullable: true })
   color?: string | null;
 
+  @ApiProperty({ description: 'Type of patch', required: false })
+  @Column({ name: 'patch_type', type: 'varchar', nullable: true })
+  patchType?: string | null;
+
   @ApiPropertyOptional({
     description: 'Image reference or URL for the patch design',
   })

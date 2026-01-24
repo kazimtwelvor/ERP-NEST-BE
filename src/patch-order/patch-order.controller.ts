@@ -69,6 +69,7 @@ export class PatchOrderController {
         embroideryCoverage: { type: 'string' },
         border: { type: 'string' },
         color: { type: 'string' },
+        patchType: { type: 'string' },
         image: { type: 'string', format: 'binary' },
       },
       required: [
@@ -82,6 +83,7 @@ export class PatchOrderController {
         'embroideryCoverage',
         'border',
         'color',
+        'patchType',
       ],
     },
   })

@@ -1,4 +1,4 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional } from 'class-validator';
 import { PatchFormType } from '../entities/patch-order.entity';
 
@@ -53,6 +53,10 @@ export class CreatePatchOrderDto {
   @ApiPropertyOptional({ description: 'Primary color for the patch' })
   @IsOptional()
   color?: string;
+
+  @ApiProperty({ description: 'Type of patch' })
+  @IsOptional()
+  patchType?: string;
 
   @ApiPropertyOptional({
     description: 'Image reference or URL for the patch design',
