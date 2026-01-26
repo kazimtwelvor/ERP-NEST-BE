@@ -64,6 +64,18 @@ export class CreatePatchOrderDto {
   @IsOptional()
   image?: string;
 
+  @ApiPropertyOptional({
+    description: 'Digital document file (PDF, JPEG, etc.)',
+  })
+  @IsOptional()
+  digDocument?: string;
+
+  @ApiPropertyOptional({
+    description: 'SIM document file (PDF, JPEG, etc.)',
+  })
+  @IsOptional()
+  simDocument?: string;
+
   @ApiPropertyOptional({ description: 'QR code data for scanning' })
   @IsOptional()
   qrCode?: string;

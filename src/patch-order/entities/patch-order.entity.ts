@@ -99,6 +99,18 @@ export class PatchOrder {
   @Column({ type: 'text', nullable: true })
   image?: string | null;
 
+  @ApiPropertyOptional({
+    description: 'Digital document file (PDF, JPEG, etc.)',
+  })
+  @Column({ name: 'dig_document', type: 'text', nullable: true })
+  digDocument?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'SIM document file (PDF, JPEG, etc.)',
+  })
+  @Column({ name: 'sim_document', type: 'text', nullable: true })
+  simDocument?: string | null;
+
   @ApiProperty({
     description: 'QR code data for scanning',
     example: 'PATCH_ORDER_UUID_HASH',

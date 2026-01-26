@@ -249,13 +249,72 @@ export class PatchOrderController {
     return this.patchOrderService.update(id, updatePatchOrderDto);
   }
 
-  @Delete(':id')
+  @Get(':id/documents')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Delete a patch order' })
+  @ApiOperation({ summary: 'Get documents for patch order' })
   @ApiParam({ name: 'id', description: 'Patch order ID (UUID)' })
-  @ApiResponse({ status: 200, description: PATCH_ORDER_MESSAGES.DELETED })
+  @ApiResponse({
+    status: 200,
+    description: 'Documents fetched successfully',
+  })
   @ApiResponse({ status: 404, description: PATCH_ORDER_MESSAGES.NOT_FOUND })
-  async remove(@Param('id') id: string) {
-    return this.patchOrderService.remove(id);
+  async getDocuments(@Param('id') id: string) {
+    return this.patchOrderService.getDocuments(id);
+  }
+
+  @Patch(':id/documents')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update documents for patch order' })
+  @ApiParam({ name: 'id', description: 'Patch order ID (UUID)' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        digDocument: { type: 'string' },
+        simDocument: { type: 'string' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Documents updated successfully',
+    type: PatchOrder,
+  })
+  @ApiResponse({ status: 404, description: PATCH_ORDER_MESSAGES.NOT_FOUND })
+  async updateDocuments(
+    @Param('id') id: string,
+    @Body() documents: { digDocument?: string; simDocument?: string },
+  ) {
+    return this.patchOrderService.updateDocuments(id, documents);
+  }
+
+  @Post(':id/upload')
+  @UseInterceptors(FileInterceptor('file'))
+  @HttpCode(HttpStatus.OK)
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload document for patch order' })
+  @ApiParam({ name: 'id', description: 'Patch order ID (UUID)' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        documentType: { type: 'string', enum: ['dig_document', 'sim_document'] },
+      },
+      required: ['file', 'documentType'],
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Document uploaded successfully',
+    type: PatchOrder,
+  })
+  @ApiResponse({ status: 404, description: PATCH_ORDER_MESSAGES.NOT_FOUND })
+  async uploadDocument(
+    @Param('id') id: string,
+    @UploadedFile() file: File,
+    @Body('documentType') documentType: 'dig_document' | 'sim_document',
+  ) {
+    return this.patchOrderService.uploadDocument(id, file, documentType);
   }
 }

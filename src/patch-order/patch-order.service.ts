@@ -320,4 +320,79 @@ export class PatchOrderService {
       lastPage,
     };
   }
+
+  async uploadDocument(
+    id: string,
+    file: any,
+    documentType: 'dig_document' | 'sim_document',
+  ): Promise<{ patchOrder: PatchOrder; message: string }> {
+    const patchOrder = await this.patchOrderRepository.findOne({
+      where: { id },
+    });
+
+    if (!patchOrder) {
+      throw new NotFoundException(PATCH_ORDER_MESSAGES.NOT_FOUND);
+    }
+
+    const fileData = file.buffer.toString('base64');
+    
+    if (documentType === 'dig_document') {
+      patchOrder.digDocument = fileData;
+    } else if (documentType === 'sim_document') {
+      patchOrder.simDocument = fileData;
+    }
+
+    const updated = await this.patchOrderRepository.save(patchOrder);
+
+    return {
+      patchOrder: updated,
+      message: 'Document uploaded successfully',
+    };
+  }
+
+  async getDocuments(id: string): Promise<{ documents: { digDocument?: string; simDocument?: string }; message: string }> {
+    const patchOrder = await this.patchOrderRepository.findOne({
+      where: { id },
+      select: ['id', 'digDocument', 'simDocument'],
+    });
+
+    if (!patchOrder) {
+      throw new NotFoundException(PATCH_ORDER_MESSAGES.NOT_FOUND);
+    }
+
+    return {
+      documents: {
+        digDocument: patchOrder.digDocument,
+        simDocument: patchOrder.simDocument,
+      },
+      message: 'Documents fetched successfully',
+    };
+  }
+
+  async updateDocuments(
+    id: string,
+    documents: { digDocument?: string; simDocument?: string },
+  ): Promise<{ patchOrder: PatchOrder; message: string }> {
+    const patchOrder = await this.patchOrderRepository.findOne({
+      where: { id },
+    });
+
+    if (!patchOrder) {
+      throw new NotFoundException(PATCH_ORDER_MESSAGES.NOT_FOUND);
+    }
+
+    if (documents.digDocument !== undefined) {
+      patchOrder.digDocument = documents.digDocument;
+    }
+    if (documents.simDocument !== undefined) {
+      patchOrder.simDocument = documents.simDocument;
+    }
+
+    const updated = await this.patchOrderRepository.save(patchOrder);
+
+    return {
+      patchOrder: updated,
+      message: 'Documents updated successfully',
+    };
+  }
 }
