@@ -31,7 +31,7 @@ export class PatchOrderService {
       'http://localhost:3000';
 
     const baseUrl = frontendUrl.replace(/\/$/, '');
-    return `${baseUrl}/patch-orders?patchOrderId=${patchOrderId}`;
+    return `${baseUrl}/orders/update-status/patches?orderItemId=${patchOrderId}`;
   }
 
   async create(
