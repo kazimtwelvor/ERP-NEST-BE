@@ -56,6 +56,14 @@ export class PatchOrderService {
     });
     const saved = await this.patchOrderRepository.save(patchOrder);
 
+    // Generate QR code when status is production and QR code not already generated
+    if (saved.status === 'production' && !saved.qrCode) {
+      const hash = crypto.randomBytes(16).toString('hex');
+      saved.qrCode = `PATCH_ORDER_${saved.id}_${hash}`;
+      saved.qrCodeUrl = this.generateQRCodeUrl(saved.id);
+      await this.patchOrderRepository.save(saved);
+    }
+
     return {
       patchOrder: saved,
       message: PATCH_ORDER_MESSAGES.CREATED,
@@ -362,8 +370,8 @@ export class PatchOrderService {
 
     return {
       documents: {
-        digDocument: patchOrder.digDocument,
-        simDocument: patchOrder.simDocument,
+        digDocument: patchOrder.digDocument ?? undefined,
+        simDocument: patchOrder.simDocument ?? undefined,
       },
       message: 'Documents fetched successfully',
     };
