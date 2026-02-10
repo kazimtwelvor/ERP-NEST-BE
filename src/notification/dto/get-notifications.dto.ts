@@ -12,4 +12,9 @@ export class GetNotificationsDto extends PaginationQueryDto {
   @IsUUID('4')
   @ApiPropertyOptional({ description: 'Filter by user ID (UUID)' })
   userId?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiPropertyOptional({ description: 'Filter by role name' })
+  roleName?: string;
 }

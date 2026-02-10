@@ -44,7 +44,7 @@ export class NotificationService {
   }
 
   async findAll(getNotificationsDto: GetNotificationsDto): Promise<PaginatedResponse<Notification>> {
-    const { query, page = 1, limit, isRead, userId, sort = SortEnum.DESC } = getNotificationsDto;
+    const { query, page = 1, limit, isRead, userId, roleName, sort = SortEnum.DESC } = getNotificationsDto;
 
     const qb = this.notificationRepository
       .createQueryBuilder('notification')
@@ -66,6 +66,16 @@ export class NotificationService {
 
     if (userId) {
       qb.andWhere('user.id = :userId', { userId });
+    }
+
+    if (roleName) {
+      qb.andWhere(
+        `EXISTS (
+          SELECT 1 FROM jsonb_array_elements(notification.role_info) AS role
+          WHERE LOWER(role->>'roleName') = LOWER(:roleName)
+        )`,
+        { roleName },
+      );
     }
 
     qb.orderBy('notification.createdAt', sort);
