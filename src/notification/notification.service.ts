@@ -17,7 +17,7 @@ export class NotificationService {
     private readonly notificationRepository: Repository<Notification>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-  ) {}
+  ) { }
 
   async create(createNotificationDto: CreateNotificationDto): Promise<{ notification: Notification; message: string }> {
     const user = await this.userRepository.findOne({
@@ -59,7 +59,8 @@ export class NotificationService {
     }
 
     if (isRead !== undefined) {
-      qb.andWhere('notification.is_read = :isRead', { isRead });
+      const isReadBool = isRead === 'true';
+      qb.andWhere('notification.is_read = :isRead', { isRead: isReadBool });
     }
 
     if (userId) {

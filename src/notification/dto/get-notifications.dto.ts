@@ -1,14 +1,12 @@
-import { IsOptional, IsBoolean, IsUUID } from 'class-validator';
+import { IsOptional, IsString, IsUUID } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
 import { PaginationQueryDto } from '../../common/dto/pagination.dto';
 
 export class GetNotificationsDto extends PaginationQueryDto {
   @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
-  @ApiPropertyOptional({ description: 'Filter by read status', example: false })
-  isRead?: boolean;
+  @IsString()
+  @ApiPropertyOptional({ description: 'Filter by read status', example: 'false' })
+  isRead?: string;
 
   @IsOptional()
   @IsUUID('4')
