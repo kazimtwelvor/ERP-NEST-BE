@@ -31,6 +31,7 @@ export class NotificationService {
     const notification = this.notificationRepository.create({
       title: createNotificationDto.title,
       description: createNotificationDto.description,
+      roleInfo: createNotificationDto.roleInfo || null,
       user,
     });
 

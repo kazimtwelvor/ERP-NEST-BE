@@ -7,7 +7,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { User } from '../../user/entities/user.entity';
 
 @Entity('notifications')
@@ -27,6 +27,10 @@ export class Notification {
   @ApiProperty({ description: 'Read status', default: false })
   @Column({ default: false, name: 'is_read' })
   isRead: boolean;
+
+  @ApiPropertyOptional({ description: 'Role information', example: [{ roleId: '123e4567-e89b-12d3-a456-426614174000', roleName: 'admin' }] })
+  @Column({ type: 'jsonb', nullable: true, name: 'role_info' })
+  roleInfo: { roleId: string; roleName: string }[] | null;
 
   @ApiProperty({ description: 'User who performs the action notification', type: () => User })
   @ManyToOne(() => User, { nullable: false })
