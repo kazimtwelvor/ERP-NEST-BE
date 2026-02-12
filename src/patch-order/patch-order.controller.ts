@@ -11,6 +11,7 @@ import {
   HttpStatus,
   UseInterceptors,
   UploadedFile,
+  Request,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -211,8 +212,9 @@ export class PatchOrderController {
   async updateStatus(
     @Param('id') id: string,
     @Body() updateStatusDto: UpdateStatusDto,
+    @Request() req: any,
   ) {
-    return this.patchOrderService.updateStatus(id, updateStatusDto);
+    return this.patchOrderService.updateStatus(id, updateStatusDto, req?.user?.userId);
   }
 
   @Patch(':id/order-status')
@@ -228,8 +230,9 @@ export class PatchOrderController {
   async updateOrderStatus(
     @Param('id') id: string,
     @Body() updateOrderStatusDto: UpdateOrderStatusDto,
+    @Request() req: any,
   ) {
-    return this.patchOrderService.updateOrderStatus(id, updateOrderStatusDto);
+    return this.patchOrderService.updateOrderStatus(id, updateOrderStatusDto, req?.user?.userId);
   }
 
   @Patch(':id')
