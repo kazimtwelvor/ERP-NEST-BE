@@ -11,6 +11,8 @@ import { Product } from '../inventory/entities/product.entity';
 import { InventoryItem } from '../inventory/entities/inventory-item.entity';
 import { PatchOrder } from '../patch-order/entities/patch-order.entity';
 import { PatchOrderTracking } from '../patch-order/entities/patch-order-tracking.entity';
+import { Notification } from '../notification/entities/notification.entity';
+import { NotificationRead } from '../notification/entities/notification-read.entity';
 
 try {
   require('dotenv').config();
@@ -36,6 +38,8 @@ export const dataSourceOptions: DataSourceOptions = {
     InventoryItem,
     PatchOrder,
     PatchOrderTracking,
+    Notification,
+    NotificationRead
   ],
   migrations: ['src/db/migrations/*.ts'],
   synchronize: false,

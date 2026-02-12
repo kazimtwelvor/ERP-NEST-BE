@@ -16,6 +16,7 @@ import { OrderTrackingModule } from './order-tracking/order-tracking.module';
 import { PermissionsGuard } from './auth/guards/permissions.guard';
 import { InventoryModule } from './inventory/inventory.module';
 import { PatchOrderModule } from './patch-order/patch-order.module';
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { PatchOrderModule } from './patch-order/patch-order.module';
     OrderTrackingModule,
     InventoryModule,
     PatchOrderModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [

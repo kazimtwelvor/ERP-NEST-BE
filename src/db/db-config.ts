@@ -12,6 +12,8 @@ import { Product } from '../inventory/entities/product.entity';
 import { InventoryItem } from '../inventory/entities/inventory-item.entity';
 import { PatchOrder } from '../patch-order/entities/patch-order.entity';
 import { PatchOrderTracking } from '../patch-order/entities/patch-order-tracking.entity';
+import { Notification } from '../notification/entities/notification.entity';
+import { NotificationRead } from '../notification/entities/notification-read.entity';
 
 export const getDatabaseConfig = (
   configService: ConfigService,
@@ -47,6 +49,8 @@ export const getDatabaseConfig = (
       InventoryItem,
       PatchOrder,
       PatchOrderTracking,
+      Notification,
+      NotificationRead
     ],
     synchronize:
       dbSynchronize !== undefined ? dbSynchronize === 'true' : isDevelopment,
@@ -54,9 +58,9 @@ export const getDatabaseConfig = (
     ssl:
       isProduction || dbSsl === 'true'
         ? {
-            rejectUnauthorized:
-              dbSslRejectUnauthorized === 'true' ? true : false,
-          }
+          rejectUnauthorized:
+            dbSslRejectUnauthorized === 'true' ? true : false,
+        }
         : false,
     extra: {
       max: configService.get<number>('DB_MAX_CONNECTIONS', 10),
