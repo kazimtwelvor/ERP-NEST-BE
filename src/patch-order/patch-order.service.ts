@@ -1,10 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Brackets } from 'typeorm';
+import { Repository, Brackets, In } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { PatchOrder } from './entities/patch-order.entity';
 import { PatchOrderTracking } from './entities/patch-order-tracking.entity';
+import { Role } from '../role-permission/entities/role.entity';
 import { CreatePatchOrderDto } from './dto/create-patch-order.dto';
 import { UpdatePatchOrderDto } from './dto/update-patch-order.dto';
 import { GetPatchOrdersDto } from './dto/get-patch-orders.dto';
@@ -13,6 +14,7 @@ import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { PATCH_ORDER_MESSAGES } from './messages/patch-order.messages';
 import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
 import { SortEnum } from '../common/dto/pagination.dto';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class PatchOrderService {
@@ -21,8 +23,58 @@ export class PatchOrderService {
     private readonly patchOrderRepository: Repository<PatchOrder>,
     @InjectRepository(PatchOrderTracking)
     private readonly patchOrderTrackingRepository: Repository<PatchOrderTracking>,
+    @InjectRepository(Role)
+    private readonly roleRepository: Repository<Role>,
     private readonly configService: ConfigService,
+    private readonly notificationService: NotificationService,
   ) {}
+
+  private readonly patchStatusToRoleMap: Record<string, string> = {
+    digitizing_in_progress: 'digitization-manager',
+    digitizing_completed: 'digitization-manager',
+    sample_in_progress: 'sample-manager',
+    sample_completed: 'sample-manager',
+    production_in_progress: 'production-manager',
+    production_completed: 'production-manager',
+    ready_to_ship: 'shipping-manager',
+    shipped: 'shipping-manager',
+  };
+
+  private resolvePatchRoleForStatus(status: string): string | null {
+    const normalized = (status || '').toLowerCase();
+    return this.patchStatusToRoleMap[normalized] || null;
+  }
+
+  private async createPatchStatusNotification(
+    patchOrder: PatchOrder,
+    status: string,
+    actorUserId: string | null,
+  ): Promise<void> {
+    if (!actorUserId) return;
+
+    const mappedRoleName = this.resolvePatchRoleForStatus(status);
+    const roleNames = ['admin', mappedRoleName].filter(
+      (name): name is string => !!name,
+    );
+
+    const roles = await this.roleRepository.find({
+      where: { name: In(roleNames) },
+    });
+    const roleByName = new Map(roles.map((role) => [role.name, role]));
+
+    const roleInfo = roleNames.map((name) => ({
+      roleId: roleByName.get(name)?.id || '',
+      roleName: name,
+    }));
+
+    const orderLabel = patchOrder.orderNo || patchOrder.orderId || patchOrder.id;
+    await this.notificationService.create({
+      title: `Patch order status updated`,
+      description: `Order ${orderLabel} status updated to ${status}`,
+      userId: actorUserId,
+      roleInfo,
+    });
+  }
 
   private generateQRCodeUrl(patchOrderId: string): string {
     const frontendUrl =
@@ -205,6 +257,7 @@ export class PatchOrderService {
   async updateStatus(
     id: string,
     updateStatusDto: UpdateStatusDto,
+    actorUserId?: string,
   ): Promise<{ patchOrder: PatchOrder; message: string }> {
     const patchOrder = await this.patchOrderRepository.findOne({
       where: { id },
@@ -225,6 +278,12 @@ export class PatchOrderService {
 
     const updated = await this.patchOrderRepository.save(patchOrder);
 
+    await this.createPatchStatusNotification(
+      updated,
+      updateStatusDto.status,
+      actorUserId || null,
+    );
+
     return {
       patchOrder: updated,
       message: PATCH_ORDER_MESSAGES.STATUS_UPDATED,
@@ -234,6 +293,7 @@ export class PatchOrderService {
   async updateOrderStatus(
     id: string,
     updateOrderStatusDto: UpdateOrderStatusDto,
+    actorUserId?: string,
   ): Promise<{ patchOrder: PatchOrder; message: string }> {
     const patchOrder = await this.patchOrderRepository.findOne({
       where: { id },
@@ -245,6 +305,12 @@ export class PatchOrderService {
 
     patchOrder.orderStatus = updateOrderStatusDto.orderStatus;
     const updated = await this.patchOrderRepository.save(patchOrder);
+
+    await this.createPatchStatusNotification(
+      updated,
+      updateOrderStatusDto.orderStatus,
+      actorUserId || null,
+    );
 
     return {
       patchOrder: updated,
