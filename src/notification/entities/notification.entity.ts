@@ -24,10 +24,6 @@ export class Notification {
   @Column({ type: 'text' })
   description: string;
 
-  @ApiProperty({ description: 'Read status', default: false })
-  @Column({ default: false, name: 'is_read' })
-  isRead: boolean;
-
   @ApiPropertyOptional({ description: 'Role information', example: [{ roleId: '123e4567-e89b-12d3-a456-426614174000', roleName: 'admin' }] })
   @Column({ type: 'jsonb', nullable: true, name: 'role_info' })
   roleInfo: { roleId: string; roleName: string }[] | null;

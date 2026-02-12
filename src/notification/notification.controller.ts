@@ -4,6 +4,8 @@ import { NotificationService } from './notification.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { UpdateNotificationDto } from './dto/update-notification.dto';
 import { GetNotificationsDto } from './dto/get-notifications.dto';
+import { MarkNotificationReadDto } from './dto/mark-notification-read.dto';
+import { BulkMarkNotificationReadDto } from './dto/bulk-mark-notification-read.dto';
 import { Notification } from './entities/notification.entity';
 import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
 import { Permissions } from '../common/decorators/permissions.decorator';
@@ -47,6 +49,27 @@ export class NotificationController {
   })
   async findAll(@Query() getNotificationsDto: GetNotificationsDto): Promise<PaginatedResponse<Notification>> {
     return this.notificationService.findAll(getNotificationsDto);
+  }
+
+  @Post(':id/read')
+  // @Permissions(AccessPermissions.UpdateNotification)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Mark a notification as read for a user' })
+  @ApiParam({ name: 'id', description: 'Notification ID (UUID)' })
+  @ApiResponse({ status: 200, description: 'Notification marked as read' })
+  @ApiResponse({ status: 404, description: NOTIFICATION_MESSAGES.NOT_FOUND })
+  async markAsRead(@Param('id') id: string, @Body() markReadDto: MarkNotificationReadDto) {
+    return this.notificationService.markAsRead(id, markReadDto.userId);
+  }
+
+  @Post('read/bulk')
+  // @Permissions(AccessPermissions.UpdateNotification)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Mark multiple notifications as read for a user' })
+  @ApiResponse({ status: 200, description: 'Notifications marked as read' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async markManyAsRead(@Body() bulkReadDto: BulkMarkNotificationReadDto) {
+    return this.notificationService.markManyAsRead(bulkReadDto.userId, bulkReadDto.notificationIds);
   }
 
   @Get(':id')
