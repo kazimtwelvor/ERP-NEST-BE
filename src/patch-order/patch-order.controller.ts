@@ -214,7 +214,8 @@ export class PatchOrderController {
     @Body() updateStatusDto: UpdateStatusDto,
     @Request() req: any,
   ) {
-    return this.patchOrderService.updateStatus(id, updateStatusDto, req?.user?.userId);
+    const actorDisplayName = `${req?.user?.user?.firstName || ''} ${req?.user?.user?.lastName || ''}`.trim();
+    return this.patchOrderService.updateStatus(id, updateStatusDto, req?.user?.userId, actorDisplayName);
   }
 
   @Patch(':id/order-status')
@@ -232,7 +233,8 @@ export class PatchOrderController {
     @Body() updateOrderStatusDto: UpdateOrderStatusDto,
     @Request() req: any,
   ) {
-    return this.patchOrderService.updateOrderStatus(id, updateOrderStatusDto, req?.user?.userId);
+    const actorDisplayName = `${req?.user?.user?.firstName || ''} ${req?.user?.user?.lastName || ''}`.trim();
+    return this.patchOrderService.updateOrderStatus(id, updateOrderStatusDto, req?.user?.userId, actorDisplayName);
   }
 
   @Patch(':id')
