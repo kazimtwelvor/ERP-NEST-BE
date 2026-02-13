@@ -29,33 +29,34 @@ export class PatchOrderService {
     private readonly notificationService: NotificationService,
   ) {}
 
-  private readonly patchStatusToRoleMap: Record<string, string> = {
-    digitizing_in_progress: 'digitization-manager',
-    digitizing_completed: 'digitization-manager',
-    sample_in_progress: 'sample-manager',
-    sample_completed: 'sample-manager',
-    production_in_progress: 'production-manager',
-    production_completed: 'production-manager',
-    ready_to_ship: 'shipping-manager',
-    shipped: 'shipping-manager',
+  private readonly patchStatusToRoleMap: Record<string, string[]> = {
+    digitizing_in_progress: ['digitization-manager'],
+    digitizing_completed: ['digitization-manager', 'sample-manager'],
+    sample_in_progress: ['sample-manager'],
+    sample_completed: ['sample-manager', 'production-manager'],
+    production_in_progress: ['production-manager'],
+    production_completed: ['production-manager', 'shipping-manager'],
+    ready_to_ship: ['shipping-manager'],
+    shipped: ['shipping-manager'],
   };
 
-  private resolvePatchRoleForStatus(status: string): string | null {
+  private resolvePatchRoleForStatus(status: string): string[] {
     const normalized = (status || '').toLowerCase();
-    return this.patchStatusToRoleMap[normalized] || null;
+    const roles = this.patchStatusToRoleMap[normalized];
+    if (!roles) return [];
+    return Array.isArray(roles) ? roles : [roles];
   }
 
   private async createPatchStatusNotification(
     patchOrder: PatchOrder,
     status: string,
     actorUserId: string | null,
+    actorDisplayName?: string,
   ): Promise<void> {
     if (!actorUserId) return;
 
-    const mappedRoleName = this.resolvePatchRoleForStatus(status);
-    const roleNames = ['admin', mappedRoleName].filter(
-      (name): name is string => !!name,
-    );
+    const mappedRoleNames = this.resolvePatchRoleForStatus(status);
+    const roleNames = ['admin', ...mappedRoleNames];
 
     const roles = await this.roleRepository.find({
       where: { name: In(roleNames) },
@@ -68,9 +69,10 @@ export class PatchOrderService {
     }));
 
     const orderLabel = patchOrder.orderNo || patchOrder.orderId || patchOrder.id;
+    const updatedBy = actorDisplayName?.trim() || 'Unknown User';
     await this.notificationService.create({
-      title: `Patch order status updated`,
-      description: `Order ${orderLabel} status updated to ${status}`,
+      title: `Order status updated`,
+      description: `Order ${orderLabel} status updated to ${status} by ${updatedBy}`,
       userId: actorUserId,
       roleInfo,
     });
@@ -258,6 +260,7 @@ export class PatchOrderService {
     id: string,
     updateStatusDto: UpdateStatusDto,
     actorUserId?: string,
+    actorDisplayName?: string,
   ): Promise<{ patchOrder: PatchOrder; message: string }> {
     const patchOrder = await this.patchOrderRepository.findOne({
       where: { id },
@@ -282,6 +285,7 @@ export class PatchOrderService {
       updated,
       updateStatusDto.status,
       actorUserId || null,
+      actorDisplayName,
     );
 
     return {
@@ -294,6 +298,7 @@ export class PatchOrderService {
     id: string,
     updateOrderStatusDto: UpdateOrderStatusDto,
     actorUserId?: string,
+    actorDisplayName?: string,
   ): Promise<{ patchOrder: PatchOrder; message: string }> {
     const patchOrder = await this.patchOrderRepository.findOne({
       where: { id },
@@ -310,6 +315,7 @@ export class PatchOrderService {
       updated,
       updateOrderStatusDto.orderStatus,
       actorUserId || null,
+      actorDisplayName,
     );
 
     return {
