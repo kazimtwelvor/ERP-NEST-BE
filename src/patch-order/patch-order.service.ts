@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { PatchOrder } from './entities/patch-order.entity';
 import { PatchOrderTracking } from './entities/patch-order-tracking.entity';
+import { PatchOrderNotes } from './entities/patch-order-notes.entity';
 import { Role } from '../role-permission/entities/role.entity';
 import { CreatePatchOrderDto } from './dto/create-patch-order.dto';
 import { UpdatePatchOrderDto } from './dto/update-patch-order.dto';
@@ -23,6 +24,8 @@ export class PatchOrderService {
     private readonly patchOrderRepository: Repository<PatchOrder>,
     @InjectRepository(PatchOrderTracking)
     private readonly patchOrderTrackingRepository: Repository<PatchOrderTracking>,
+    @InjectRepository(PatchOrderNotes)
+    private readonly patchOrderNotesRepository: Repository<PatchOrderNotes>,
     @InjectRepository(Role)
     private readonly roleRepository: Repository<Role>,
     private readonly configService: ConfigService,
@@ -473,6 +476,55 @@ export class PatchOrderService {
     return {
       patchOrder: updated,
       message: 'Documents updated successfully',
+    };
+  }
+
+  async addNote(
+    patchOrderId: string,
+    userId: string,
+    note: string,
+  ): Promise<{ note: PatchOrderNotes; message: string }> {
+    const patchOrder = await this.patchOrderRepository.findOne({
+      where: { id: patchOrderId },
+    });
+
+    if (!patchOrder) {
+      throw new NotFoundException(PATCH_ORDER_MESSAGES.NOT_FOUND);
+    }
+
+    const noteEntity = this.patchOrderNotesRepository.create({
+      patchOrderId,
+      userId,
+      note,
+      orderStatus: patchOrder.orderStatus,
+    });
+
+    const saved = await this.patchOrderNotesRepository.save(noteEntity);
+
+    return {
+      note: saved,
+      message: 'Note added successfully',
+    };
+  }
+
+  async getNotes(patchOrderId: string): Promise<{ notes: PatchOrderNotes[]; message: string }> {
+    const patchOrder = await this.patchOrderRepository.findOne({
+      where: { id: patchOrderId },
+    });
+
+    if (!patchOrder) {
+      throw new NotFoundException(PATCH_ORDER_MESSAGES.NOT_FOUND);
+    }
+
+    const notes = await this.patchOrderNotesRepository.find({
+      where: { patchOrderId },
+      relations: ['user'],
+      order: { createdAt: 'DESC' },
+    });
+
+    return {
+      notes,
+      message: 'Notes fetched successfully',
     };
   }
 }

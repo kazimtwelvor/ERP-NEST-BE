@@ -13,6 +13,8 @@ import { PatchOrder } from '../patch-order/entities/patch-order.entity';
 import { PatchOrderTracking } from '../patch-order/entities/patch-order-tracking.entity';
 import { Notification } from '../notification/entities/notification.entity';
 import { NotificationRead } from '../notification/entities/notification-read.entity';
+import { PatchOrderNotes } from '../patch-order/entities/patch-order-notes.entity';
+
 
 try {
   require('dotenv').config();
@@ -39,7 +41,8 @@ export const dataSourceOptions: DataSourceOptions = {
     PatchOrder,
     PatchOrderTracking,
     Notification,
-    NotificationRead
+    NotificationRead,
+    PatchOrderNotes
   ],
   migrations: ['src/db/migrations/*.ts'],
   synchronize: false,
