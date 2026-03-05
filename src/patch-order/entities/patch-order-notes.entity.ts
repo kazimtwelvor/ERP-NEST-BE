@@ -28,6 +28,10 @@ export class PatchOrderNotes {
 	@Column({ type: 'text' })
 	note: string;
 
+	@ApiProperty({ description: 'Image URL', required: false })
+	@Column({ name: 'image_url', type: 'text', nullable: true })
+	imageUrl: string | null;
+
 	@ApiProperty({ description: 'Order status at the time of note creation' })
 	@Column({ name: 'order_status', type: 'varchar', nullable: true })
 	orderStatus: string | null;

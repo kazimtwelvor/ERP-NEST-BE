@@ -483,6 +483,7 @@ export class PatchOrderService {
     patchOrderId: string,
     userId: string,
     note: string,
+    imageUrl?: string,
   ): Promise<{ note: PatchOrderNotes; message: string }> {
     const patchOrder = await this.patchOrderRepository.findOne({
       where: { id: patchOrderId },
@@ -496,6 +497,7 @@ export class PatchOrderService {
       patchOrderId,
       userId,
       note,
+      imageUrl: imageUrl || null,
       orderStatus: patchOrder.orderStatus,
     });
 
