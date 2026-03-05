@@ -331,7 +331,7 @@ export class PatchOrderController {
 	@ApiResponse({ status: 201, description: 'Note added successfully' })
 	@ApiResponse({ status: 404, description: PATCH_ORDER_MESSAGES.NOT_FOUND })
 	async addNote(@Param('id') id: string, @Body() addNoteDto: AddNoteDto) {
-		return this.patchOrderService.addNote(id, addNoteDto.userId, addNoteDto.note);
+		return this.patchOrderService.addNote(id, addNoteDto.userId, addNoteDto.note, addNoteDto.imageUrl);
 	}
 
 	@Get(':id/notes')
