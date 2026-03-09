@@ -283,6 +283,20 @@ export class PatchOrderController {
 		return this.patchOrderService.uploadImage(id, file);
 	}
 
+	@Delete(':id/image')
+	@HttpCode(HttpStatus.OK)
+	@ApiOperation({ summary: 'Delete image from patch order' })
+	@ApiParam({ name: 'id', description: 'Patch order ID (UUID)' })
+	@ApiResponse({
+		status: 200,
+		description: 'Image deleted successfully',
+		type: PatchOrder,
+	})
+	@ApiResponse({ status: 404, description: PATCH_ORDER_MESSAGES.NOT_FOUND })
+	async deleteImage(@Param('id') id: string) {
+		return this.patchOrderService.deleteImage(id);
+	}
+
 	@Get(':id/documents')
 	@HttpCode(HttpStatus.OK)
 	@ApiOperation({ summary: 'Get documents for patch order' })
@@ -370,5 +384,18 @@ export class PatchOrderController {
 	@ApiResponse({ status: 404, description: PATCH_ORDER_MESSAGES.NOT_FOUND })
 	async getNotes(@Param('id') id: string) {
 		return this.patchOrderService.getNotes(id);
+	}
+
+	@Delete(':id')
+	@HttpCode(HttpStatus.OK)
+	@ApiOperation({ summary: 'Delete a patch order' })
+	@ApiParam({ name: 'id', description: 'Patch order ID (UUID)' })
+	@ApiResponse({
+		status: 200,
+		description: PATCH_ORDER_MESSAGES.DELETED,
+	})
+	@ApiResponse({ status: 404, description: PATCH_ORDER_MESSAGES.NOT_FOUND })
+	async remove(@Param('id') id: string) {
+		return this.patchOrderService.remove(id);
 	}
 }
