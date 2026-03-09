@@ -252,6 +252,13 @@ export class PatchOrderService {
       throw new NotFoundException(PATCH_ORDER_MESSAGES.NOT_FOUND);
     }
 
+    // Delete related tracking records first
+    await this.patchOrderTrackingRepository.delete({ patchOrderId: id });
+
+    // Delete related notes
+    await this.patchOrderNotesRepository.delete({ patchOrderId: id });
+
+    // Now delete the patch order
     await this.patchOrderRepository.remove(patchOrder);
 
     return {
@@ -430,6 +437,49 @@ export class PatchOrderService {
     return {
       patchOrder: updated,
       message: 'Document uploaded successfully',
+    };
+  }
+
+  async uploadImage(
+    id: string,
+    file: any,
+  ): Promise<{ patchOrder: PatchOrder; message: string }> {
+    const patchOrder = await this.patchOrderRepository.findOne({
+      where: { id },
+    });
+
+    if (!patchOrder) {
+      throw new NotFoundException(PATCH_ORDER_MESSAGES.NOT_FOUND);
+    }
+
+    const fileData = file.buffer.toString('base64');
+    patchOrder.image = fileData;
+
+    const updated = await this.patchOrderRepository.save(patchOrder);
+
+    return {
+      patchOrder: updated,
+      message: 'Image uploaded successfully',
+    };
+  }
+
+  async deleteImage(
+    id: string,
+  ): Promise<{ patchOrder: PatchOrder; message: string }> {
+    const patchOrder = await this.patchOrderRepository.findOne({
+      where: { id },
+    });
+
+    if (!patchOrder) {
+      throw new NotFoundException(PATCH_ORDER_MESSAGES.NOT_FOUND);
+    }
+
+    patchOrder.image = null;
+    const updated = await this.patchOrderRepository.save(patchOrder);
+
+    return {
+      patchOrder: updated,
+      message: 'Image deleted successfully',
     };
   }
 
