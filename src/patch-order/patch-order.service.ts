@@ -433,6 +433,29 @@ export class PatchOrderService {
     };
   }
 
+  async uploadImage(
+    id: string,
+    file: any,
+  ): Promise<{ patchOrder: PatchOrder; message: string }> {
+    const patchOrder = await this.patchOrderRepository.findOne({
+      where: { id },
+    });
+
+    if (!patchOrder) {
+      throw new NotFoundException(PATCH_ORDER_MESSAGES.NOT_FOUND);
+    }
+
+    const fileData = file.buffer.toString('base64');
+    patchOrder.image = fileData;
+
+    const updated = await this.patchOrderRepository.save(patchOrder);
+
+    return {
+      patchOrder: updated,
+      message: 'Image uploaded successfully',
+    };
+  }
+
   async getDocuments(id: string): Promise<{ documents: { digDocument?: string; simDocument?: string }; message: string }> {
     const patchOrder = await this.patchOrderRepository.findOne({
       where: { id },
