@@ -179,9 +179,69 @@ export class PatchOrderService {
     const [data, total] = await qb.getManyAndCount();
     const lastPage = limit ? Math.ceil(total / limit) : 1;
 
+    // Enrich patch orders with per-stage last update times from tracking history
+    const ids = data.map((patch) => patch.id);
+    let dataWithStageTimes: any[] = data;
+
+    if (ids.length > 0) {
+      const trackingRecords = await this.patchOrderTrackingRepository.find({
+        where: { patchOrderId: In(ids) },
+        order: { createdAt: 'DESC' },
+      });
+
+      const stageTimeByOrder: Record<
+        string,
+        { digitizing?: Date; sample?: Date; production?: Date; shipping?: Date }
+      > = {};
+
+      // Both in_progress and completed statuses count for each stage – use the most recent of either
+      const STAGE_STATUSES: Record<string, string[]> = {
+        digitizing: ['digitizing_in_progress', 'digitizing_completed'],
+        sample: ['sample_in_progress', 'sample_completed'],
+        production: ['production_in_progress', 'production_completed'],
+        shipping: ['ready_to_ship', 'shipped'],
+      };
+
+      for (const record of trackingRecords) {
+        const status = (record.status || '').toLowerCase();
+        let stage: 'digitizing' | 'sample' | 'production' | 'shipping' | null = null;
+        for (const [st, statuses] of Object.entries(STAGE_STATUSES)) {
+          if (statuses.includes(status)) {
+            stage = st as 'digitizing' | 'sample' | 'production' | 'shipping';
+            break;
+          }
+        }
+        if (!stage) continue;
+
+        const bucket =
+          stageTimeByOrder[record.patchOrderId] ||
+          (stageTimeByOrder[record.patchOrderId] = {});
+
+        // Records ordered DESC by createdAt – first seen per stage is the latest update
+        if (!bucket[stage]) {
+          bucket[stage] = record.createdAt;
+        }
+      }
+
+      dataWithStageTimes = data.map((patch) => {
+        const stages = stageTimeByOrder[patch.id];
+        if (!stages) return patch;
+
+        return {
+          ...patch,
+          lastStageTimes: {
+            digitizing: stages.digitizing?.toISOString(),
+            sample: stages.sample?.toISOString(),
+            production: stages.production?.toISOString(),
+            shipping: stages.shipping?.toISOString(),
+          },
+        };
+      });
+    }
+
     return {
       message: PATCH_ORDER_MESSAGES.LIST_FETCHED,
-      data,
+      data: dataWithStageTimes as PatchOrder[],
       page,
       total,
       lastPage,
