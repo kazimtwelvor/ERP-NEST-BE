@@ -193,6 +193,7 @@ export class PatchOrderService {
         string,
         { digitizing?: Date; sample?: Date; production?: Date; shipping?: Date }
       > = {};
+      const statusTimeByOrder: Record<string, Record<string, Date>> = {};
 
       // Both in_progress and completed statuses count for each stage – use the most recent of either
       const STAGE_STATUSES: Record<string, string[]> = {
@@ -216,10 +217,16 @@ export class PatchOrderService {
         const bucket =
           stageTimeByOrder[record.patchOrderId] ||
           (stageTimeByOrder[record.patchOrderId] = {});
+        const statusBucket =
+          statusTimeByOrder[record.patchOrderId] ||
+          (statusTimeByOrder[record.patchOrderId] = {});
 
         // Records ordered DESC by createdAt – first seen per stage is the latest update
         if (!bucket[stage]) {
           bucket[stage] = record.createdAt;
+        }
+        if (!statusBucket[status]) {
+          statusBucket[status] = record.createdAt;
         }
       }
 
@@ -235,6 +242,12 @@ export class PatchOrderService {
             production: stages.production?.toISOString(),
             shipping: stages.shipping?.toISOString(),
           },
+          lastStatusTimes: Object.fromEntries(
+            Object.entries(statusTimeByOrder[patch.id] || {}).map(([status, date]) => [
+              status,
+              date.toISOString(),
+            ]),
+          ),
         };
       });
     }
