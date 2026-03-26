@@ -35,7 +35,7 @@ export const permissionsSeed = async (dataSource: DataSource): Promise<void> => 
       displayName: 'Update Patch In-Progress Statuses',
       module: 'order',
       action: 'update',
-      description: 'Allows admin users to update DIG/SAM/PRO/FIN in-progress statuses',
+      description: 'Allows admin users to update DIG/SAM/PRO in-progress statuses',
     },
     {
       name: 'patch.status.update.completed',
