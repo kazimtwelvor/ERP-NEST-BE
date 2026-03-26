@@ -29,6 +29,21 @@ export const permissionsSeed = async (dataSource: DataSource): Promise<void> => 
     { name: 'order.update', displayName: 'Update Order', module: 'order', action: 'update', description: 'Allows updating order information' },
     { name: 'order.delete', displayName: 'Delete Order', module: 'order', action: 'delete', description: 'Allows deleting orders' },
     { name: 'order.manage', displayName: 'Manage Orders', module: 'order', action: 'manage', description: 'Full order management access' },
+
+    {
+      name: 'patch.status.update.in_progress',
+      displayName: 'Update Patch In-Progress Statuses',
+      module: 'order',
+      action: 'update',
+      description: 'Allows admin users to update DIG/SAM/PRO/FIN in-progress statuses',
+    },
+    {
+      name: 'patch.status.update.completed',
+      displayName: 'Update Patch Completed Statuses',
+      module: 'order',
+      action: 'update',
+      description: 'Allows admin users to update DIG/SAM/PRO/FIN completed statuses',
+    },
   ];
 
   for (const permissionData of permissions) {

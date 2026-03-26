@@ -38,7 +38,9 @@ export class PatchOrderService {
     sample_in_progress: ['sample-manager'],
     sample_completed: ['sample-manager', 'production-manager'],
     production_in_progress: ['production-manager'],
-    production_completed: ['production-manager', 'shipping-manager'],
+    production_completed: ['production-manager', 'finishing-manager'],
+    finishing_in_progress: ['finishing-manager'],
+    finishing_completed: ['finishing-manager', 'shipping-manager'],
     ready_to_ship: ['shipping-manager'],
     shipped: ['shipping-manager'],
   };
@@ -191,7 +193,7 @@ export class PatchOrderService {
 
       const stageTimeByOrder: Record<
         string,
-        { digitizing?: Date; sample?: Date; production?: Date; shipping?: Date }
+        { digitizing?: Date; sample?: Date; production?: Date; finishing?: Date; shipping?: Date }
       > = {};
       const statusTimeByOrder: Record<string, Record<string, Date>> = {};
 
@@ -200,15 +202,16 @@ export class PatchOrderService {
         digitizing: ['digitizing_in_progress', 'digitizing_completed'],
         sample: ['sample_in_progress', 'sample_completed'],
         production: ['production_in_progress', 'production_completed'],
+        finishing: ['finishing_in_progress', 'finishing_completed'],
         shipping: ['ready_to_ship', 'shipped'],
       };
 
       for (const record of trackingRecords) {
         const status = (record.status || '').toLowerCase();
-        let stage: 'digitizing' | 'sample' | 'production' | 'shipping' | null = null;
+        let stage: 'digitizing' | 'sample' | 'production' | 'finishing' | 'shipping' | null = null;
         for (const [st, statuses] of Object.entries(STAGE_STATUSES)) {
           if (statuses.includes(status)) {
-            stage = st as 'digitizing' | 'sample' | 'production' | 'shipping';
+            stage = st as 'digitizing' | 'sample' | 'production' | 'finishing' | 'shipping';
             break;
           }
         }
@@ -240,6 +243,7 @@ export class PatchOrderService {
             digitizing: stages.digitizing?.toISOString(),
             sample: stages.sample?.toISOString(),
             production: stages.production?.toISOString(),
+            finishing: stages.finishing?.toISOString(),
             shipping: stages.shipping?.toISOString(),
           },
           lastStatusTimes: Object.fromEntries(

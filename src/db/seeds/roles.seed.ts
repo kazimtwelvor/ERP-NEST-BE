@@ -10,6 +10,7 @@ export const rolesSeed = async (dataSource: DataSource): Promise<void> => {
 
   const rolePermissionsMap = {
     admin: allPermissions.map(p => p.name), 
+    'patch-admin': allPermissions.map(p => p.name),
     employee: [
       'user.read',
       'product.read',
@@ -29,6 +30,14 @@ export const rolesSeed = async (dataSource: DataSource): Promise<void> => {
       status: 'active',
       isSystem: true,
       permissions: rolePermissionsMap.admin,
+    },
+    {
+      name: 'patch-admin',
+      displayName: 'Patch Administrator',
+      description: 'Patch-focused admin role with full access, including patch status controls',
+      status: 'active',
+      isSystem: false,
+      permissions: rolePermissionsMap['patch-admin'],
     },
   ];
 
