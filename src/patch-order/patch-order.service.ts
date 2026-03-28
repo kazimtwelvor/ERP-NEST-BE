@@ -233,25 +233,39 @@ export class PatchOrderService {
         }
       }
 
+      const lastNotes = await this.patchOrderNotesRepository
+        .createQueryBuilder('note')
+        .distinctOn(['note.patch_order_id'])
+        .where('note.patch_order_id IN (:...ids)', { ids })
+        .orderBy('note.patch_order_id')
+        .addOrderBy('note.created_at', 'DESC')
+        .getMany();
+
+      const lastNoteByOrder: Record<string, string> = {};
+      for (const n of lastNotes) {
+        lastNoteByOrder[n.patchOrderId] = n.note;
+      }
+
       dataWithStageTimes = data.map((patch) => {
         const stages = stageTimeByOrder[patch.id];
-        if (!stages) return patch;
-
         return {
           ...patch,
-          lastStageTimes: {
-            digitizing: stages.digitizing?.toISOString(),
-            sample: stages.sample?.toISOString(),
-            production: stages.production?.toISOString(),
-            finishing: stages.finishing?.toISOString(),
-            shipping: stages.shipping?.toISOString(),
-          },
-          lastStatusTimes: Object.fromEntries(
-            Object.entries(statusTimeByOrder[patch.id] || {}).map(([status, date]) => [
-              status,
-              date.toISOString(),
-            ]),
-          ),
+          ...(stages && {
+            lastStageTimes: {
+              digitizing: stages.digitizing?.toISOString(),
+              sample: stages.sample?.toISOString(),
+              production: stages.production?.toISOString(),
+              finishing: stages.finishing?.toISOString(),
+              shipping: stages.shipping?.toISOString(),
+            },
+            lastStatusTimes: Object.fromEntries(
+              Object.entries(statusTimeByOrder[patch.id] || {}).map(([status, date]) => [
+                status,
+                date.toISOString(),
+              ]),
+            ),
+          }),
+          lastNote: lastNoteByOrder[patch.id] || null,
         };
       });
     }
